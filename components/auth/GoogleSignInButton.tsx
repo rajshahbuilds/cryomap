@@ -33,22 +33,31 @@ function GoogleLogo() {
 interface GoogleSignInButtonProps {
   onClick?: () => void;
   loading?: boolean;
+  /** Small, content-width variant for a page header. */
+  compact?: boolean;
 }
 
 /** Presentational Google sign-in button. All logic lives in the parent. */
 export function GoogleSignInButton({
   onClick,
   loading = false,
+  compact = false,
 }: GoogleSignInButtonProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="inline-flex w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm font-medium text-foreground shadow-sm transition hover:bg-background disabled:cursor-not-allowed disabled:opacity-60"
+      className={`inline-flex items-center justify-center rounded-lg border border-border bg-surface text-sm font-medium text-foreground transition hover:bg-background disabled:cursor-not-allowed disabled:opacity-60 ${
+        compact ? "gap-2 px-3 py-1.5" : "w-full gap-3 px-4 py-2.5 shadow-sm"
+      }`}
     >
       <GoogleLogo />
-      {loading ? "Signing in…" : "Continue with Google"}
+      {loading
+        ? "Signing in…"
+        : compact
+          ? "Sign in with Google"
+          : "Continue with Google"}
     </button>
   );
 }
