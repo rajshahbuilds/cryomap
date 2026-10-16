@@ -87,9 +87,11 @@ function fieldsFor(selection: PanelSelection, lines: Line[]): Field[] {
     return [
       ...COMPONENT_FIELDS,
       ...linkField,
-      ...extraKeys.map(
-        (k): Field => ({ key: `${EXTRA}${k}`, label: k, kind: "text" }),
-      ),
+      ...extraKeys.map((k): Field => ({
+        key: `${EXTRA}${k}`,
+        label: k,
+        kind: "text",
+      })),
     ];
   }
   if (selection.kind === "line") return LINE_FIELDS;
