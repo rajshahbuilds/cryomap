@@ -1,10 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import Home from "@/app/page";
-import { render } from "./render";
+import { render, userEvent } from "./render";
+
+const { signInWithGoogleMock } = vi.hoisted(() => ({
+  signInWithGoogleMock: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/auth/client", () => ({
+  signInWithGoogle: signInWithGoogleMock,
+}));
 
 describe("Home", () => {
-  it("introduces CryoMap and links to the primary actions", () => {
+  it("introduces CryoMap and starts Google sign-in directly", async () => {
+    const user = userEvent.setup();
     render(<Home />);
 
     expect(
@@ -12,13 +21,14 @@ describe("Home", () => {
         name: /a shared map of your cryogenic wiring/i,
       }),
     ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(signInWithGoogleMock).toHaveBeenCalledOnce();
     expect(
-      screen.getByRole("link", { name: "Create your workspace" }),
-    ).toHaveAttribute("href", "/auth/login?next=%2Fworkspaces%2Fnew");
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
-      "href",
-      "/auth/login",
-    );
+      screen.queryByRole("link", { name: "Create your workspace" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Explore the code" }),
+    ).not.toBeInTheDocument();
   });
 
   it("links the footer policies to the public repository", () => {

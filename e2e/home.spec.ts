@@ -8,7 +8,11 @@ test("root presents the public CryoMap homepage", async ({ page }) => {
       name: /a shared map of your cryogenic wiring/i,
     }),
   ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Create your workspace" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Explore the code" }),
+  ).toHaveCount(0);
 });

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FileDown, Server, ShieldCheck, Snowflake } from "lucide-react";
+import { HomeSignInButton } from "@/components/auth/HomeSignInButton";
 
 const REPOSITORY_URL = "https://github.com/rajshahbuilds/cryomap";
 
@@ -10,39 +11,34 @@ export const metadata: Metadata = {
     "Open-source wiring documentation, versioning, and collaboration for quantum-hardware research labs.",
 };
 
-const primaryButton =
-  "inline-flex min-h-11 items-center justify-center rounded-xl bg-ice-deep px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(11,37,69,0.16)] transition hover:opacity-90";
-const secondaryButton =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-white/80 px-5 text-sm font-semibold text-ice-deep transition hover:bg-white";
-
 export default function Home() {
   return (
     <div className="home-page flex min-h-full flex-1 flex-col text-ice-deep">
-      <header className="mx-auto flex w-[min(70rem,calc(100%-3rem))] items-center justify-between gap-5 border-b border-border/80 py-5 max-sm:w-[calc(100%-1.75rem)] max-sm:py-4">
-        <Link
-          href="/"
-          aria-label="CryoMap home"
-          className="flex items-center gap-2.5 font-semibold tracking-tight"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-ice-deep via-ice to-ice-frost text-white shadow-[0_8px_24px_rgba(29,111,165,0.22)]">
-            <Snowflake aria-hidden="true" size={19} strokeWidth={2.2} />
-          </span>
-          CryoMap
-        </Link>
-
-        <nav aria-label="Main navigation" className="flex items-center gap-2">
-          <a
-            href={REPOSITORY_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 px-3 text-sm font-medium text-ice-muted transition hover:text-ice-deep max-sm:hidden"
+      <header className="border-b border-border/80">
+        <div className="mx-auto flex w-[min(70rem,calc(100%-3rem))] items-center justify-between gap-5 py-5 max-sm:w-[calc(100%-1.75rem)] max-sm:py-4">
+          <Link
+            href="/"
+            aria-label="CryoMap home"
+            className="flex items-center gap-2.5 font-semibold tracking-tight"
           >
-            GitHub
-          </a>
-          <Link href="/auth/login" className={primaryButton}>
-            Sign in
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-ice-deep via-ice to-ice-frost text-white shadow-[0_8px_24px_rgba(29,111,165,0.22)]">
+              <Snowflake aria-hidden="true" size={19} strokeWidth={2.2} />
+            </span>
+            CryoMap
           </Link>
-        </nav>
+
+          <nav aria-label="Main navigation" className="flex items-center gap-2">
+            <a
+              href={REPOSITORY_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center gap-2 px-3 text-sm font-medium text-ice-muted transition hover:text-ice-deep max-sm:hidden"
+            >
+              GitHub
+            </a>
+            <HomeSignInButton />
+          </nav>
+        </div>
       </header>
 
       <main className="flex-1">
@@ -60,24 +56,7 @@ export default function Home() {
             collaborate without losing context.
           </p>
 
-          <div className="mt-8 flex flex-wrap justify-center gap-2.5 max-sm:flex-col">
-            <Link
-              href="/auth/login?next=%2Fworkspaces%2Fnew"
-              className={primaryButton}
-            >
-              Create your workspace
-            </Link>
-            <a
-              href={REPOSITORY_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={secondaryButton}
-            >
-              Explore the code
-            </a>
-          </div>
-
-          <ul className="mt-6 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-ice-muted">
+          <ul className="mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-ice-muted">
             <li className="flex items-center gap-1.5">
               <ShieldCheck aria-hidden="true" size={14} className="text-ice" />
               Role-based access
