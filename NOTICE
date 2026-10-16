@@ -31,6 +31,9 @@ carry attribution or notice terms worth calling out:
 - Geist and Geist Mono fonts (SIL Open Font License 1.1) — © Vercel, loaded via
   next/font.
 
+- Lucide icons (ISC) — Copyright © 2026 Lucide Icons and Contributors. Used and
+  distributed under the ISC License included with the lucide-react package.
+
 Each dependency's full license text ships inside its own package under
 node_modules/<package>. This NOTICE file does not modify the terms of any
 third-party license.

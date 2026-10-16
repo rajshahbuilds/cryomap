@@ -6,6 +6,7 @@ import { test, expect } from "@playwright/test";
 test("login page offers Google sign-in", async ({ page }) => {
   await page.goto("/auth/login");
 
+  await expect(page).toHaveTitle("CryoMap");
   await expect(page.getByRole("heading", { name: "CryoMap" })).toBeVisible();
   await expect(
     page.getByRole("button", { name: /sign in with google/i }),

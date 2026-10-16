@@ -1,72 +1,110 @@
 # CryoMap Terms of Service
 
-> **Draft — not legal advice.** A starting-point terms of service for the
-> official CryoMap hosted beta. Review and adapt with qualified counsel before
-> relying on it. **Effective date:** _TBD at launch._ These terms cover the
-> official hosted service at https://cryomap.vercel.app, operated by Raj Shah
-> ("we"). They do **not** cover third-party self-hosted deployments.
+**Effective date:** October 16, 2026
+
+These terms apply to the free CryoMap beta hosted at
+[cryomap.vercel.app](https://cryomap.vercel.app) and operated by Raj Shah
+("CryoMap", "we", or "us"). They do not apply to independently operated,
+self-hosted deployments of the open-source software. By using the hosted
+service, you agree to these terms.
 
 ## 1. The service
 
-CryoMap is a free, **beta** web app for documenting dilution-refrigerator and
-room-temperature wiring. Being beta, it may change, break, or be discontinued,
-and may have downtime, without notice.
+CryoMap is a free beta service for documenting dilution-refrigerator and
+room-temperature wiring. The service may change, experience downtime, or be
+discontinued. We do not promise that every feature or item of data will remain
+available indefinitely.
 
-## 2. Eligibility & accounts
+## 2. Accounts and workspaces
 
-You sign in with a Google account and are responsible for activity under your
-account. Keep your Google credentials secure.
+You sign in with a Google account and are responsible for activity performed
+through your account. You must provide accurate account information and take
+reasonable steps to keep your Google account secure.
+
+Workspace administrators control membership and roles. Users are responsible
+for inviting only authorized people and for choosing an appropriate role for
+each member.
 
 ## 3. Acceptable use
 
-Don't:
+You must not:
 
-- break the law or infringe others' rights with the service;
-- upload content you don't have the right to share;
-- attempt to access workspaces or data you aren't a member of, or probe,
-  overload, or disrupt the service or its infrastructure;
-- abuse sign-in, workspace creation, invites, or other endpoints (including
-  automated or excessive requests).
+- use the service unlawfully or infringe another person's rights;
+- upload content you do not have the right to store or share;
+- attempt to access a workspace or data without authorization;
+- probe, overload, interfere with, or disrupt the service or its
+  infrastructure; or
+- abuse accounts, invitations, automated requests, or other service features.
 
-We may suspend or remove access or content that violates these terms or risks the
-service or other users.
+We may restrict or suspend access when reasonably necessary to address abuse,
+security risks, or violations of these terms.
 
 ## 4. Your content
 
-You retain ownership of the diagrams and data you create. You grant us only the
-permissions needed to operate the service (store, process, display your content
-to your workspace members, and back it up). You're responsible for your content
-and for keeping your own copies — **export regularly** (PNG/PDF/JSON) during beta.
+You retain ownership of the diagrams and other content you create. You give us
+permission to store, process, back up, and display that content only as needed
+to operate CryoMap and make it available to authorized workspace members.
 
-## 5. Privacy
+You are responsible for deciding whether CryoMap is appropriate for your
+content. Do not upload information that is classified, export-controlled, or
+subject to confidentiality or security requirements that CryoMap has not
+expressly agreed to meet. Keep independent copies of important information and
+export your diagrams regularly during the beta.
 
-Your use is also governed by the [Privacy Policy](./PRIVACY.md).
+## 5. Research and safety
 
-## 6. The software
+CryoMap is a documentation aid. It does not provide engineering, electrical,
+cryogenic, laboratory-safety, or other professional advice. Diagrams may be
+incomplete, outdated, or incorrect. You are responsible for independently
+verifying all information and following your institution's procedures before
+building, modifying, energizing, or operating any equipment.
 
-The CryoMap software is open source under [Apache-2.0](./LICENSE). The "CryoMap"
-name and branding are governed by [`TRADEMARKS.md`](./TRADEMARKS.md). These terms
-govern your use of the **hosted service**, not your rights to the code.
+## 6. Privacy
 
-## 7. Disclaimer & liability
+Our handling of personal information is described in the
+[Privacy Policy](./PRIVACY.md).
 
-THE SERVICE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. To the maximum
-extent permitted by law, we are not liable for any indirect, incidental, or
-consequential damages, or for loss of data, arising from your use of the service.
-CryoMap is a documentation aid and is **not** a substitute for your own
-verification of lab hardware and safety procedures.
+## 7. Open-source software and branding
 
-## 8. Termination
+The CryoMap source code is available under the [Apache License 2.0](./LICENSE).
+The CryoMap name and branding are addressed in [`TRADEMARKS.md`](./TRADEMARKS.md).
+Those documents govern the code and branding; these terms govern use of the
+official hosted service.
 
-You may stop using the service and delete your workspaces or account at any time
-(see the Privacy Policy). We may suspend or terminate access to keep the service
-safe or if you violate these terms.
+## 8. Third-party services
 
-## 9. Changes
+CryoMap relies on services provided by Supabase, Vercel, and Google. Your use of
+those services may also be subject to their respective terms. We are not
+responsible for third-party services outside our control.
 
-We may update these terms; material changes will be noted with a new effective
-date. Continued use after a change means you accept the updated terms.
+## 9. Disclaimers and limitation of liability
 
-## 10. Contact
+The service is provided **"as is" and "as available," without warranties of any
+kind**, to the maximum extent permitted by law. We do not guarantee that the
+service will be uninterrupted, error-free, secure, or free from data loss.
 
-**rajshahbuilds@gmail.com**.
+To the maximum extent permitted by law, CryoMap and its operator will not be
+liable for indirect, incidental, special, consequential, or punitive damages,
+or for lost data, lost research, lost revenue, equipment damage, or service
+interruption arising from or related to use of the service.
+
+Some jurisdictions do not allow certain warranty exclusions or limitations of
+liability, so parts of this section may not apply to you.
+
+## 10. Ending use of the service
+
+You may stop using CryoMap at any time. Workspace administrators can delete
+their workspaces, and account deletion can be requested as described in the
+Privacy Policy. We may suspend or end access to protect the service or its users,
+respond to legal requirements, or address violations of these terms.
+
+## 11. Changes
+
+We may update these terms as the beta evolves. The effective date above will be
+updated when revised terms take effect. If a change is material, we will provide
+appropriate notice. Continued use after the revised terms take effect means you
+accept them.
+
+## 12. Contact
+
+Questions about these terms can be sent to **rajshahbuilds@gmail.com**.

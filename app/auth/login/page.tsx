@@ -3,7 +3,7 @@ import { LoginForm } from "@/components/auth/LoginForm";
 import { safeRedirectPath } from "@/lib/auth/config";
 
 export const metadata: Metadata = {
-  title: "Sign in · CryoMap",
+  title: "CryoMap",
 };
 
 export default async function LoginPage({

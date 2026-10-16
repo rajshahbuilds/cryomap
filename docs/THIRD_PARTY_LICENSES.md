@@ -7,7 +7,7 @@ grouped by SPDX license identifier. Regenerate with:
 pnpm licenses list
 ```
 
-**467 packages** across **15 license types**.
+**468 packages** across **15 license types**.
 
 
 ## MIT (400)
@@ -18,9 +18,9 @@ pnpm licenses list
 
 `@eslint/config-array`, `@eslint/config-helpers`, `@eslint/core`, `@eslint/object-schema`, `@eslint/plugin-kit`, `@humanfs/core`, `@humanfs/node`, `@humanfs/types`, `@humanwhocodes/module-importer`, `@humanwhocodes/retry`, `@img/sharp-darwin-arm64`, `@playwright/test`, `@swc/helpers`, `aria-query`, `axobject-query`, `baseline-browser-mapping`, `detect-libc`, `doctrine`, `eslint-visitor-keys`, `expect-type`, `playwright`, `playwright-core`, `sharp`, `typescript`, `xml-name-validator`
 
-## ISC (15)
+## ISC (16)
 
-`electron-to-chromium`, `eslint-import-resolver-typescript`, `fastq`, `flatted`, `glob-parent`, `graceful-fs`, `isexe`, `lru-cache`, `minimatch`, `picocolors`, `saxes`, `semver`, `siginfo`, `which`, `yallist`
+`electron-to-chromium`, `eslint-import-resolver-typescript`, `fastq`, `flatted`, `glob-parent`, `graceful-fs`, `isexe`, `lru-cache`, `lucide-react`, `minimatch`, `picocolors`, `saxes`, `semver`, `siginfo`, `which`, `yallist`
 
 ## BSD-2-Clause (9)
 

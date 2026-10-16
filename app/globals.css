@@ -85,3 +85,20 @@ body {
       transparent 50%
     );
 }
+
+/* Quiet public homepage: the signed-out palette, concentrated above the fold. */
+.home-page {
+  background-color: var(--color-background);
+  background-image:
+    radial-gradient(
+      42rem 34rem at -8% -8%,
+      color-mix(in srgb, #818cf8 20%, transparent),
+      transparent 63%
+    ),
+    radial-gradient(
+      44rem 36rem at 108% 2%,
+      color-mix(in srgb, var(--color-ice-frost) 21%, transparent),
+      transparent 64%
+    ),
+    linear-gradient(180deg, #f9fbfd 0%, #ffffff 68%);
+}
