@@ -6,9 +6,9 @@ import { test, expect } from "@playwright/test";
 test("login page offers Google sign-in", async ({ page }) => {
   await page.goto("/auth/login");
 
-  await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "CryoMap" })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /continue with google/i }),
+    page.getByRole("button", { name: /sign in with google/i }),
   ).toBeVisible();
 });
 
@@ -19,6 +19,6 @@ test("protected route redirects unauthenticated users to login", async ({
 
   await expect(page).toHaveURL(/\/auth\/login\?next=%2Ffridges/);
   await expect(
-    page.getByRole("button", { name: /continue with google/i }),
+    page.getByRole("button", { name: /sign in with google/i }),
   ).toBeVisible();
 });

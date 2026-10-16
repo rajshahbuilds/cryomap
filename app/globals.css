@@ -22,6 +22,12 @@
   --color-status-planned: #2563eb;
   --color-status-unknown: #6b7280;
 
+  /* Icy accents for the signed-out hero (deep glacier → frost) */
+  --color-ice-deep: #0b2545; /* darkest ice, readable as text */
+  --color-ice: #1d6fa5;
+  --color-ice-frost: #5ec5e3;
+  --color-ice-muted: #56738c; /* blue-grey secondary text */
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -29,6 +35,19 @@
 body {
   background: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Glacier gradient for the hero wordmark: deep ice fading to frost. */
+.ice-text {
+  background-image: linear-gradient(
+    135deg,
+    var(--color-ice-deep) 15%,
+    var(--color-ice) 55%,
+    var(--color-ice-frost) 95%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 /*
@@ -47,7 +66,7 @@ body {
     ),
     radial-gradient(
       52rem 48rem at 106% -2%,
-      color-mix(in srgb, var(--color-status-working) 24%, transparent),
+      color-mix(in srgb, var(--color-ice-frost) 26%, transparent),
       transparent 58%
     ),
     radial-gradient(

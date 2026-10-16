@@ -15,6 +15,14 @@ describe("GoogleSignInButton", () => {
     expect(onClick).toHaveBeenCalledOnce();
   });
 
+  it("uses a shorter label in the compact header variant", () => {
+    renderWithProviders(<GoogleSignInButton compact />);
+
+    expect(
+      screen.getByRole("button", { name: /sign in with google/i }),
+    ).toBeInTheDocument();
+  });
+
   it("shows a loading state and is disabled while signing in", () => {
     renderWithProviders(<GoogleSignInButton loading />);
 

@@ -9,10 +9,16 @@ interface LoginFormProps {
   next?: string;
   /** Show a generic failure message (e.g. when the callback bounced back). */
   initialError?: boolean;
+  /** Small header-sized button with the error right-aligned beneath it. */
+  compact?: boolean;
 }
 
 /** Stateful wrapper that drives the Google OAuth flow. */
-export function LoginForm({ next, initialError = false }: LoginFormProps) {
+export function LoginForm({
+  next,
+  initialError = false,
+  compact = false,
+}: LoginFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(
     initialError ? "Sign-in failed. Please try again." : "",
@@ -31,10 +37,21 @@ export function LoginForm({ next, initialError = false }: LoginFormProps) {
   }
 
   return (
-    <div className="space-y-3">
-      <GoogleSignInButton onClick={handleSignIn} loading={loading} />
+    <div className={compact ? "flex flex-col items-end gap-2" : "space-y-3"}>
+      <GoogleSignInButton
+        onClick={handleSignIn}
+        loading={loading}
+        compact={compact}
+      />
       {error ? (
-        <p role="alert" className="text-sm text-status-broken">
+        <p
+          role="alert"
+          className={
+            compact
+              ? "max-w-xs text-right text-sm text-status-broken"
+              : "text-sm text-status-broken"
+          }
+        >
           {error}
         </p>
       ) : null}
