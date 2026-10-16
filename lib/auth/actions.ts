@@ -6,7 +6,7 @@ import { LOGIN_PATH } from "./config";
 
 /**
  * Server action: clear the Supabase session (and its auth cookies) and return
- * the user to the login page. Wire it to a `<form action={signOut}>`.
+ * the user to the public homepage. Wire it to a `<form action={signOut}>`.
  */
 export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();

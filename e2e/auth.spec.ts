@@ -3,23 +3,22 @@ import { test, expect } from "@playwright/test";
 // These run against a stubbed Supabase URL (see playwright.config.ts), so
 // `auth.getUser()` resolves to no session — every request is unauthenticated.
 
-test("login page offers Google sign-in", async ({ page }) => {
+test("legacy login URL redirects to the homepage", async ({ page }) => {
   await page.goto("/auth/login");
 
-  await expect(page).toHaveTitle("CryoMap");
-  await expect(page.getByRole("heading", { name: "CryoMap" })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("button", { name: /sign in with google/i }),
+    page.getByRole("heading", {
+      name: /a shared map of your cryogenic wiring/i,
+    }),
   ).toBeVisible();
 });
 
-test("protected route redirects unauthenticated users to login", async ({
+test("protected route redirects unauthenticated users to the homepage", async ({
   page,
 }) => {
   await page.goto("/fridges");
 
-  await expect(page).toHaveURL(/\/auth\/login\?next=%2Ffridges/);
-  await expect(
-    page.getByRole("button", { name: /sign in with google/i }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(/\/\?next=%2Ffridges/);
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
 });

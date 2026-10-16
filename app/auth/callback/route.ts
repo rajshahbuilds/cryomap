@@ -30,7 +30,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
   }
 
-  // Missing code or a failed exchange — bounce back to login with an error flag.
+  // Missing code or a failed exchange — return home with an error flag.
   const loginUrl = new URL(LOGIN_PATH, origin);
   loginUrl.searchParams.set("error", "auth");
   return NextResponse.redirect(loginUrl);

@@ -7,7 +7,7 @@ import { readSupabaseEnv } from "./env";
 /**
  * Refresh the Supabase auth session on each request so Server Components
  * receive a valid token, and redirect unauthenticated visitors away from
- * protected routes to the login page (preserving the requested path as `next`).
+ * protected routes to the homepage (preserving the requested path as `next`).
  *
  * No-ops when Supabase env vars are absent, so the app stays up — and stays
  * reachable — even before they are configured.

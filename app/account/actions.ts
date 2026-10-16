@@ -15,7 +15,7 @@ export interface DeleteAccountResult {
 /**
  * Permanently delete the signed-in user's account, plus the workspaces they
  * confirmed (those where they're the only admin). On success, clear the session
- * and return to the login page.
+ * and return to the public homepage.
  */
 export async function deleteAccount(
   confirmedWorkspaceIds: string[],

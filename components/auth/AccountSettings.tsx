@@ -44,7 +44,7 @@ export function AccountSettings({
 
   const onDelete = () =>
     startTransition(async () => {
-      // Redirects to the login page on success; only errors come back.
+      // Redirects to the public homepage on success; only errors come back.
       const result = await deleteAccount(soleAdminWorkspaces.map((w) => w.id));
       if (result?.error) toast.error(result.error);
     });

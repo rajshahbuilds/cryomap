@@ -5,8 +5,8 @@
  * middleware, Server Components, Route Handlers, and the browser alike.
  */
 
-/** Where unauthenticated users are sent. */
-export const LOGIN_PATH = "/auth/login";
+/** Public entry point where unauthenticated users can start Google sign-in. */
+export const LOGIN_PATH = "/";
 
 /** OAuth code-exchange endpoint (Supabase redirects the browser here). */
 export const AUTH_CALLBACK_PATH = "/auth/callback";

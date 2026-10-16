@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 /**
  * Invite redemption page. The middleware guarantees the visitor is signed in
- * (signed-out visitors are sent to login with this path as `next`, then back).
+ * (signed-out visitors are sent home with this path as `next`, then back).
  */
 export default async function JoinPage({
   params,

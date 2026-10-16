@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { signInWithGoogle } from "@/lib/auth/client";
+import { safeRedirectPath } from "@/lib/auth/config";
 
 /** Starts Google OAuth directly from the public homepage header. */
 export function HomeSignInButton() {
@@ -13,7 +14,13 @@ export function HomeSignInButton() {
     setError("");
 
     try {
-      await signInWithGoogle();
+      const requestedNext = new URLSearchParams(window.location.search).get(
+        "next",
+      );
+      const next = requestedNext
+        ? safeRedirectPath(requestedNext, "/fridges")
+        : undefined;
+      await signInWithGoogle(next);
       // On success the browser navigates to Google; keep the pending state up.
     } catch {
       setError("Could not start Google sign-in. Please try again.");

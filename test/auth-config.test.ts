@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import {
   DEFAULT_AUTHED_REDIRECT,
   isPublicPath,
+  LOGIN_PATH,
   safeRedirectPath,
 } from "@/lib/auth/config";
+
+it("uses the public homepage as the sign-in destination", () => {
+  expect(LOGIN_PATH).toBe("/");
+});
 
 describe("isPublicPath", () => {
   it("treats the landing page and auth routes as public", () => {

@@ -23,7 +23,7 @@ import {
   isJoinSuccess,
 } from "@/lib/workspaces/invites";
 
-/** Resolve the signed-in user (redirecting to login if absent). */
+/** Resolve the signed-in user (redirecting home if absent). */
 async function requireUserDb() {
   const db = await createSupabaseServerClient();
   const {
