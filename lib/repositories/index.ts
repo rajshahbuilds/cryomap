@@ -16,4 +16,5 @@ export { profilesRepo, type ProfileUpsertInput } from "./profiles";
 export { workspacesRepo } from "./workspaces";
 export { workspaceMembersRepo, type MemberAddInput } from "./members";
 export { workspaceInvitesRepo, type InviteCreateInput } from "./invites";
+export { accountRepo } from "./account";
 export { RepositoryError, type Db } from "./_support";

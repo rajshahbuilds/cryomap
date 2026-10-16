@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ProfileView } from "@/lib/hooks/useProfile";
 import { signOut } from "@/lib/auth/actions";
 
@@ -67,6 +68,12 @@ export function UserMenu({ profile, loading = false }: UserMenuProps) {
           ) : null}
         </div>
         <div className="my-1 h-px bg-border" />
+        <Link
+          href="/account"
+          className="block w-full rounded-md px-3 py-1.5 text-left text-sm text-foreground transition hover:bg-background"
+        >
+          Account settings
+        </Link>
         <form action={signOut}>
           <button
             type="submit"
