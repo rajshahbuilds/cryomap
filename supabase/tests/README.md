@@ -41,6 +41,9 @@ a JWT claims blob, exactly as PostgREST sets them):
   fridges); workspace deletion cannot cross tenants.
 - **Profiles** are readable only by self + co-members and writable only by self.
 - **Last-admin guard** survives direct database access.
+- **delete_account** refuses to delete a workspace the caller is sole admin of
+  unless they confirmed it, deletes it when confirmed, and otherwise removes
+  only the caller (shared data survives with authorship nulled, locks released).
 
 Exports (PNG/PDF) are generated client-side from already-read diagram data, so
 they inherit the same read policy and need no separate server surface.

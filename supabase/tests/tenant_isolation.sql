@@ -388,5 +388,68 @@ begin
   raise notice '[pass] last-admin guard prevents removing the final admin';
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- 11. delete_account: removes only the caller; never deletes a workspace the
+--     caller didn't confirm; shared data survives with authorship nulled.
+-- ---------------------------------------------------------------------------
+do $$
+declare blocked boolean := false;
+begin
+  -- Sole admin of Lab B, without confirming it → refused, nothing deleted.
+  perform pg_temp.login('bbbbbbbb-0000-0000-0000-0000000000b2'); -- out_b
+  begin
+    perform public.delete_account();
+  exception when others then blocked := true; end;
+  if not blocked then raise exception 'FAIL deleted account without confirming sole-admin workspace'; end if;
+  if not exists (select 1 from public.workspaces where id='bbbbbbbb-0000-0000-0000-000000000001')
+    then raise exception 'FAIL unconfirmed workspace was deleted'; end if;
+
+  -- Confirming it → the workspace (and its fridges) go with the account.
+  perform public.delete_account(array['bbbbbbbb-0000-0000-0000-000000000001'::uuid]);
+end $$;
+
+reset role;
+
+do $$
+begin
+  if exists (select 1 from auth.users where id='bbbbbbbb-0000-0000-0000-0000000000b2')
+    then raise exception 'FAIL auth user not deleted'; end if;
+  if exists (select 1 from public.profiles where id='bbbbbbbb-0000-0000-0000-0000000000b2')
+    then raise exception 'FAIL profile not deleted'; end if;
+  if exists (select 1 from public.workspaces where id='bbbbbbbb-0000-0000-0000-000000000001')
+    then raise exception 'FAIL confirmed sole-admin workspace survived'; end if;
+  if exists (select 1 from public.fridges where id='bbbbbbbb-1111-0000-0000-000000000001')
+    then raise exception 'FAIL fridge of deleted workspace survived'; end if;
+end $$;
+
+-- Lab A admin hands off admin first, then deletes: Lab A survives untouched.
+update public.workspace_members set role='admin'
+ where workspace_id='aaaaaaaa-0000-0000-0000-000000000001'
+   and user_id='aaaaaaaa-0000-0000-0000-0000000000a9';
+
+do $$
+begin
+  perform pg_temp.login('aaaaaaaa-0000-0000-0000-0000000000a1'); -- adm_a
+  perform public.delete_account();
+end $$;
+
+reset role;
+
+do $$
+begin
+  if exists (select 1 from auth.users where id='aaaaaaaa-0000-0000-0000-0000000000a1')
+    then raise exception 'FAIL adm_a not deleted'; end if;
+  if not exists (select 1 from public.workspaces where id='aaaaaaaa-0000-0000-0000-000000000001')
+    then raise exception 'FAIL Lab A deleted although another admin remains'; end if;
+  if (select created_by from public.fridges where id='aaaaaaaa-1111-0000-0000-000000000001') is not null
+    then raise exception 'FAIL fridge authorship not nulled'; end if;
+  if exists (select 1 from public.locks where fridge_id='aaaaaaaa-1111-0000-0000-000000000001')
+    then raise exception 'FAIL deleted user still holds a lock'; end if;
+  if (select count(*) from public.workspace_members
+       where workspace_id='aaaaaaaa-0000-0000-0000-000000000001') <> 4
+    then raise exception 'FAIL other Lab A memberships changed'; end if;
+  raise notice '[pass] delete_account removes only the caller and confirmed sole-admin workspaces';
+end $$;
+
 reset role;
 do $$ begin raise notice 'ALL TENANT-ISOLATION CHECKS PASSED'; end $$;

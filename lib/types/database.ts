@@ -790,6 +790,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_account: {
+        Args: { confirmed_workspace_ids?: string[] }
+        Returns: undefined
+      }
       is_workspace_member: { Args: { ws: string }; Returns: boolean }
       member_role: {
         Args: { ws: string }

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  accountRepo,
   fridgesRepo,
   stagesRepo,
   locksRepo,
@@ -268,6 +269,38 @@ describe("workspaceInvitesRepo", () => {
     expect(result.status).toBe("joined");
     expect(result.workspace_id).toBe("ws-1");
     expect(result.workspace_name).toBe("from tok-1");
+  });
+});
+
+describe("accountRepo", () => {
+  it("deletes via the delete_account RPC, passing confirmed workspaces", async () => {
+    const calls: unknown[] = [];
+    const fake = createSupabaseFake(
+      {},
+      {
+        delete_account: (args) => {
+          calls.push(args);
+          return { data: null, error: null };
+        },
+      },
+    );
+    await accountRepo(asDb(fake)).delete(["ws-1"]);
+    expect(calls).toEqual([{ confirmed_workspace_ids: ["ws-1"] }]);
+  });
+
+  it("throws when the RPC refuses", async () => {
+    const fake = createSupabaseFake(
+      {},
+      {
+        delete_account: () => ({
+          data: null,
+          error: { message: "not confirmed" },
+        }),
+      },
+    );
+    await expect(accountRepo(asDb(fake)).delete([])).rejects.toThrow(
+      RepositoryError,
+    );
   });
 });
 
