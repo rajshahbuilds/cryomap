@@ -1,0 +1,36 @@
+CryoMap
+Copyright 2026 Raj Shah
+
+This product is licensed under the Apache License, Version 2.0 (the "License");
+you may not use this software except in compliance with the License. A copy of
+the License is provided in the LICENSE file.
+
+------------------------------------------------------------------------------
+Third-party components
+------------------------------------------------------------------------------
+
+CryoMap depends on third-party open-source software that is downloaded at
+install time (via pnpm) and is not redistributed in this repository. A complete
+inventory of dependency licenses is in docs/THIRD_PARTY_LICENSES.md. The vast
+majority are MIT-, ISC-, BSD-, or Apache-2.0-licensed. The following components
+carry attribution or notice terms worth calling out:
+
+- caniuse-lite (CC-BY-4.0) — browser-support data used at build time by
+  Browserslist. Data © caniuse.com contributors, used under the Creative
+  Commons Attribution 4.0 International license.
+
+- dompurify (dual-licensed MPL-2.0 OR Apache-2.0) — used under Apache-2.0.
+
+- axe-core, lightningcss (MPL-2.0) — used unmodified as build/test tooling;
+  their source and MPL-2.0 terms travel with the published packages.
+
+- sharp → libvips (@img/sharp-libvips-*, LGPL-3.0-or-later) — an optional,
+  platform-specific native image library used unmodified for Next.js image
+  optimization.
+
+- Geist and Geist Mono fonts (SIL Open Font License 1.1) — © Vercel, loaded via
+  next/font.
+
+Each dependency's full license text ships inside its own package under
+node_modules/<package>. This NOTICE file does not modify the terms of any
+third-party license.

@@ -1,0 +1,60 @@
+{
+  "name": "cryomap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Collaborative wiring-diagram editor for quantum-computing dilution refrigerators.",
+  "license": "Apache-2.0",
+  "author": "Raj Shah",
+  "homepage": "https://cryomap.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rajshahbuilds/cryomap.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rajshahbuilds/cryomap/issues"
+  },
+  "packageManager": "pnpm@11.8.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:smoke": "playwright test -c playwright.smoke.config.ts",
+    "test:rls": "bash supabase/tests/run.sh"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "jspdf": "^4.2.1",
+    "next": "16.4.2",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.2",
+    "eslint-config-prettier": "^10.1.8",
+    "jsdom": "^29.1.1",
+    "prettier": "^3.8.4",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.9"
+  }
+}

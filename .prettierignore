@@ -1,0 +1,19 @@
+.next
+node_modules
+pnpm-lock.yaml
+*.tsbuildinfo
+public
+coverage
+playwright-report
+test-results
+# Long-form docs are hand-wrapped; keep Prettier off them.
+*.md
+
+# Generated Supabase types
+lib/types/database.ts
+
+# Vitest snapshots
+**/__snapshots__/
+
+# Downloaded OAuth client secrets (also git-ignored)
+client_secret_*.json

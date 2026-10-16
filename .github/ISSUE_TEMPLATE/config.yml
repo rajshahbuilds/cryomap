@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/rajshahbuilds/cryomap/security/advisories/new
+    about: Report security issues privately — do not open a public issue (see SECURITY.md).
+  - name: Question or support
+    url: https://github.com/rajshahbuilds/cryomap/blob/main/SUPPORT.md
+    about: How to get help. Support is best-effort with no guaranteed response time.

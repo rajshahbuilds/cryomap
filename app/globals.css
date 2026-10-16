@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/*
+ * CryoMap design tokens — LIGHT THEME ONLY.
+ * (Intentionally overrides the spec's "dark theme throughout" guidance.)
+ * These are the single source of truth for colors; components consume the
+ * generated semantic utilities (bg-surface, border-border, text-muted,
+ * bg-status-broken, …) rather than hardcoding hex values.
+ */
+@theme {
+  /* Surfaces & text */
+  --color-background: #f7f8fa; /* app canvas background */
+  --color-surface: #ffffff; /* cards, panels, toolbars */
+  --color-border: #e2e4e9;
+  --color-foreground: #1a1d27; /* primary text */
+  --color-muted: #6b7280; /* secondary text */
+
+  /* Status vocabulary (working/noisy/broken/planned/unknown), tuned for light bg */
+  --color-status-working: #16a34a;
+  --color-status-noisy: #ca8a04;
+  --color-status-broken: #dc2626;
+  --color-status-planned: #2563eb;
+  --color-status-unknown: #6b7280;
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/*
+ * Decorative, light-theme hero backdrop for the signed-out screen: a soft but
+ * colorful gradient mesh — saturated pastel blobs at the corners that blend to a
+ * light center (so the card stays readable). Kept here so colors live in the
+ * stylesheet. Light-theme-only.
+ */
+.login-hero {
+  background-color: var(--color-background);
+  background-image:
+    radial-gradient(
+      58rem 50rem at -5% -8%,
+      color-mix(in srgb, var(--color-status-planned) 34%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      52rem 48rem at 106% -2%,
+      color-mix(in srgb, var(--color-status-working) 24%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(
+      64rem 56rem at 106% 106%,
+      color-mix(in srgb, #22d3ee 42%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      50rem 48rem at -6% 106%,
+      color-mix(in srgb, #818cf8 30%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(
+      120deg,
+      color-mix(in srgb, var(--color-status-planned) 8%, transparent),
+      transparent 50%
+    );
+}
