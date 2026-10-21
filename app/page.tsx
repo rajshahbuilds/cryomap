@@ -20,21 +20,12 @@ export const metadata: Metadata = {
     title: "CryoMap · Collaborative cryogenic wiring diagrams",
     description:
       "Open-source wiring documentation, versioning, and collaboration for quantum-hardware research labs.",
-    images: [
-      {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: "CryoMap — collaborative cryogenic wiring diagrams",
-      },
-    ],
   },
   twitter: {
-    card: "summary_large_image",
+    card: "summary",
     title: "CryoMap · Collaborative cryogenic wiring diagrams",
     description:
       "Open-source wiring documentation, versioning, and collaboration for quantum-hardware research labs.",
-    images: ["/og.png"],
   },
 };
 
