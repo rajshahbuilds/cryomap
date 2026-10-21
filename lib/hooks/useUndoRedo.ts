@@ -12,6 +12,7 @@ import {
   pushCommand,
   type UndoCommand,
   type UndoStack,
+  type DiagramStateUpdate,
 } from "@/lib/diagram/undoStack";
 
 export interface UseUndoRedo {
@@ -29,66 +30,81 @@ export interface UseUndoRedo {
 /**
  * Local undo/redo over reversible edit commands. `apply` runs the forward op and
  * records its inverse; `undo`/`redo` walk the stack, re-running against a fresh
- * Supabase client. `onApplied` (a diagram reload) runs after each change so the
- * view re-syncs to DB truth even when an op fails. `onError`, if given, receives
- * any error thrown by a command (e.g. a Supabase write failure) so callers can
- * surface it as a toast instead of failing silently.
+ * Supabase client. Commands with optimistic state updates change the canvas
+ * immediately and skip the routine full reload. Commands without one reconcile
+ * after the DB operation. Failures always reconcile to DB truth. `onError`, if
+ * given, receives command failures so callers can surface them as a toast.
  */
 export function useUndoRedo(
   onApplied: () => void,
   onError?: (error: unknown) => void,
+  onStateUpdate?: (update: DiagramStateUpdate) => void,
 ): UseUndoRedo {
   const [stack, setStack] = useState<UndoStack>(emptyStack());
 
+  const applyOptimistic = useCallback(
+    (update: DiagramStateUpdate | undefined) => {
+      if (!update || !onStateUpdate) return false;
+      onStateUpdate(update);
+      return true;
+    },
+    [onStateUpdate],
+  );
+
   const apply = useCallback(
     (command: UndoCommand) => {
+      const optimistic = applyOptimistic(command.optimisticRedo);
       void (async () => {
         try {
           await command.redo(createSupabaseBrowserClient());
           setStack((s) => pushCommand(s, command));
         } catch (error) {
+          applyOptimistic(command.optimisticUndo);
           onError?.(error);
-        } finally {
           onApplied();
+          return;
         }
+        if (!optimistic) onApplied();
       })();
     },
-    [onApplied, onError],
+    [applyOptimistic, onApplied, onError],
   );
 
   const undo = useCallback(() => {
-    setStack((current) => {
-      const popped = popUndo(current);
-      if (!popped) return current;
-      void (async () => {
-        try {
-          await popped.command.undo(createSupabaseBrowserClient());
-        } catch (error) {
-          onError?.(error);
-        } finally {
-          onApplied();
-        }
-      })();
-      return popped.next;
-    });
-  }, [onApplied, onError]);
+    const popped = popUndo(stack);
+    if (!popped) return;
+    setStack(popped.next);
+    const optimistic = applyOptimistic(popped.command.optimisticUndo);
+    void (async () => {
+      try {
+        await popped.command.undo(createSupabaseBrowserClient());
+      } catch (error) {
+        applyOptimistic(popped.command.optimisticRedo);
+        onError?.(error);
+        onApplied();
+        return;
+      }
+      if (!optimistic) onApplied();
+    })();
+  }, [applyOptimistic, onApplied, onError, stack]);
 
   const redo = useCallback(() => {
-    setStack((current) => {
-      const popped = popRedo(current);
-      if (!popped) return current;
-      void (async () => {
-        try {
-          await popped.command.redo(createSupabaseBrowserClient());
-        } catch (error) {
-          onError?.(error);
-        } finally {
-          onApplied();
-        }
-      })();
-      return popped.next;
-    });
-  }, [onApplied, onError]);
+    const popped = popRedo(stack);
+    if (!popped) return;
+    setStack(popped.next);
+    const optimistic = applyOptimistic(popped.command.optimisticRedo);
+    void (async () => {
+      try {
+        await popped.command.redo(createSupabaseBrowserClient());
+      } catch (error) {
+        applyOptimistic(popped.command.optimisticUndo);
+        onError?.(error);
+        onApplied();
+        return;
+      }
+      if (!optimistic) onApplied();
+    })();
+  }, [applyOptimistic, onApplied, onError, stack]);
 
   const reset = useCallback(() => setStack(emptyStack()), []);
 

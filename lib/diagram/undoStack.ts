@@ -1,4 +1,7 @@
 import type { Db } from "@/lib/repositories";
+import type { DiagramState } from "@/lib/types";
+
+export type DiagramStateUpdate = (state: DiagramState) => DiagramState;
 
 /**
  * A reversible edit. `redo` performs (or replays) the operation; `undo` reverses
@@ -8,6 +11,10 @@ import type { Db } from "@/lib/repositories";
 export interface UndoCommand {
   redo: (db: Db) => Promise<void>;
   undo: (db: Db) => Promise<void>;
+  /** Apply the forward operation to the browser copy before the DB responds. */
+  optimisticRedo?: DiagramStateUpdate;
+  /** Apply the inverse operation to the browser copy before the DB responds. */
+  optimisticUndo?: DiagramStateUpdate;
 }
 
 /** Past (undoable) and future (redoable) command stacks. */

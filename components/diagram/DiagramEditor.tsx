@@ -74,8 +74,13 @@ import {
   resolvePlacement,
   componentBox,
   positionFieldsOf,
+  targetToPosition,
   type Box,
 } from "@/lib/diagram/placement";
+import {
+  withComponentPosition,
+  withoutComponents,
+} from "@/lib/diagram/optimisticState";
 import {
   baseRotationForType,
   componentSize,
@@ -194,6 +199,7 @@ export function DiagramEditor({
     fridge,
     error,
     reload,
+    updateState,
   } = useDiagram(fridgeId, sheetTabs.requestedId);
   // The sheet being edited, resolved by `assembleDiagram` against what exists.
   const activeSheet = view?.sheet ?? null;
@@ -288,8 +294,10 @@ export function DiagramEditor({
     canUndo,
     canRedo,
     isDirty: undoDirty,
-  } = useUndoRedo(reload, (error) =>
-    toast.error(errorToMessage(error, "Couldn’t save your change")),
+  } = useUndoRedo(
+    reload,
+    (error) => toast.error(errorToMessage(error, "Couldn’t save your change")),
+    updateState,
   );
 
   // Editing also requires an editor+ role, so a viewer holding a stale lock (or
@@ -737,7 +745,12 @@ export function DiagramEditor({
             const id = component.id;
             const before = positionFieldsOf(component);
             const target = resolved.target;
+            const after = targetToPosition(target);
             applyEdit({
+              optimisticRedo: (state) =>
+                withComponentPosition(state, id, after),
+              optimisticUndo: (state) =>
+                withComponentPosition(state, id, before),
               redo: async (db) => {
                 await moveComponentTo(db, id, target);
               },
@@ -1071,8 +1084,10 @@ export function DiagramEditor({
         }
         if (selectedComponents.length === 0) return;
         let items = [...selectedComponents];
+        const deletedIds = items.map((component) => component.id);
         setSelectedIds([]);
         applyEdit({
+          optimisticRedo: (state) => withoutComponents(state, deletedIds),
           redo: async (db) => {
             await Promise.all(items.map((c) => deleteComponent(db, c.id)));
           },
@@ -1199,6 +1214,7 @@ export function DiagramEditor({
             let item = menu.component;
             setSelectedIds((s) => s.filter((x) => x !== id));
             applyEdit({
+              optimisticRedo: (state) => withoutComponents(state, [id]),
               redo: async (db) => {
                 await deleteComponent(db, item.id);
               },

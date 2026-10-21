@@ -43,6 +43,7 @@ import {
 } from "./sheetService";
 import type { ComponentShift, LineOrderUpdate } from "./lineOps";
 import type { StageOrderUpdate } from "./stageOps";
+import { withoutConnection } from "./optimisticState";
 
 type Patch = Record<string, unknown>;
 
@@ -573,6 +574,7 @@ export function deleteConnectionCommand(connection: Connection): UndoCommand {
   };
   let currentId = connection.id;
   return {
+    optimisticRedo: (state) => withoutConnection(state, currentId),
     redo: async (db) => {
       await connectionsRepo(db).remove(currentId);
     },

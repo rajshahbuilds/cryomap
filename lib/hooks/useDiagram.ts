@@ -6,6 +6,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { fridgesRepo } from "@/lib/repositories";
 import { assembleDiagram, type DiagramView } from "@/lib/diagram/assemble";
 import { loadDiagramState } from "@/lib/diagram/load";
+import type { DiagramStateUpdate } from "@/lib/diagram/undoStack";
 
 export interface UseDiagramResult {
   status: "loading" | "ready" | "error";
@@ -21,6 +22,8 @@ export interface UseDiagramResult {
   error: string | null;
   /** Re-fetch the diagram (e.g. after an edit). */
   reload: () => void;
+  /** Apply an immediate browser-side edit without waiting for a refetch. */
+  updateState: (update: DiagramStateUpdate) => void;
 }
 
 /**
@@ -44,19 +47,32 @@ export function useDiagram(
   }>({ status: "loading", state: null, fridge: null, error: null });
   const [nonce, setNonce] = useState(0);
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const updateState = useCallback((update: DiagramStateUpdate) => {
+    setResult((current) =>
+      current.state
+        ? { ...current, state: update(current.state), error: null }
+        : current,
+    );
+  }, []);
 
   useEffect(() => {
     let active = true;
 
     (async () => {
-      if (active) {
-        setResult({
-          status: "loading",
-          state: null,
-          fridge: null,
-          error: null,
-        });
-      }
+      // Keep an already-rendered fridge mounted during background
+      // reconciliation. Only the initial load (or a different fridge) needs a
+      // blocking loading state.
+      if (active)
+        setResult((current) =>
+          current.state && current.fridge?.id === fridgeId
+            ? { ...current, error: null }
+            : {
+                status: "loading",
+                state: null,
+                fridge: null,
+                error: null,
+              },
+        );
       try {
         const db = createSupabaseBrowserClient();
         const [state, fridge] = await Promise.all([
@@ -67,15 +83,20 @@ export function useDiagram(
         setResult({ status: "ready", state, fridge, error: null });
       } catch (error) {
         if (!active) return;
-        setResult({
-          status: "error",
-          state: null,
-          fridge: null,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Failed to load the diagram.",
-        });
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to load the diagram.";
+        setResult((current) =>
+          current.state && current.fridge?.id === fridgeId
+            ? { ...current, status: "ready", error: message }
+            : {
+                status: "error",
+                state: null,
+                fridge: null,
+                error: message,
+              },
+        );
       }
     })();
 
@@ -96,5 +117,6 @@ export function useDiagram(
     fridge: result.fridge,
     error: result.error,
     reload,
+    updateState,
   };
 }
