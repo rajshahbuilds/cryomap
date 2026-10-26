@@ -13,6 +13,7 @@ it("uses the public homepage as the sign-in destination", () => {
 describe("isPublicPath", () => {
   it("treats the landing page and auth routes as public", () => {
     expect(isPublicPath("/")).toBe(true);
+    expect(isPublicPath("/playground")).toBe(true);
     expect(isPublicPath("/auth")).toBe(true);
     expect(isPublicPath("/auth/login")).toBe(true);
     expect(isPublicPath("/auth/callback")).toBe(true);

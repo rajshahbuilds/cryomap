@@ -15,7 +15,7 @@ export const AUTH_CALLBACK_PATH = "/auth/callback";
 export const DEFAULT_AUTHED_REDIRECT = "/fridges";
 
 /** Paths reachable without a session. */
-const PUBLIC_EXACT = new Set<string>(["/"]);
+const PUBLIC_EXACT = new Set<string>(["/", "/playground"]);
 const PUBLIC_PREFIXES = ["/auth"];
 
 /** True when a path may be visited without an authenticated session. */

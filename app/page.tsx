@@ -74,6 +74,18 @@ export default function Home() {
             collaborate without losing context.
           </p>
 
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/playground"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-ice-deep px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(11,37,69,0.16)] transition hover:opacity-90"
+            >
+              Try the editor
+            </Link>
+            <span className="text-sm text-ice-muted">
+              No account required · Nothing is saved
+            </span>
+          </div>
+
           <ul className="mt-8 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-ice-muted">
             <li className="flex items-center gap-1.5">
               <ShieldCheck aria-hidden="true" size={14} className="text-ice" />
