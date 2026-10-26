@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -40,6 +39,7 @@ import { ComponentCaption, ComponentSymbol } from "./ComponentSymbol";
 import { ComponentPalette, type PaletteSelection } from "./ComponentPalette";
 import { LineColumns } from "./LineColumns";
 import { LinesBar } from "./LinesBar";
+import { PropertiesPanel } from "./PropertiesPanel";
 import { StagesBands } from "./StagesBands";
 import { StagesBar } from "./StagesBar";
 import { WireJunctions, WireSegments } from "./WireSegment";
@@ -326,6 +326,32 @@ export function DemoDiagramEditor() {
     }));
   };
 
+  const mirrorSelected = () => {
+    if (!selectedId) return;
+    setState((current) => ({
+      ...current,
+      components: current.components.map((item) =>
+        item.id === selectedId ? { ...item, mirrored: !item.mirrored } : item,
+      ),
+    }));
+  };
+
+  const saveSelectedMetadata = (patch: Record<string, unknown>) => {
+    if (!selectedId) return;
+    setState((current) => ({
+      ...current,
+      components: current.components.map((item) =>
+        item.id === selectedId
+          ? {
+              ...item,
+              ...patch,
+              last_edited_at: new Date().toISOString(),
+            }
+          : item,
+      ),
+    }));
+  };
+
   const reset = () => {
     if (
       state.components.length + state.lines.length + state.stages.length > 0 &&
@@ -405,12 +431,6 @@ export function DemoDiagramEditor() {
           >
             Reset canvas
           </button>
-          <Link
-            href="/?next=/fridges"
-            className="rounded-md bg-foreground px-3 py-1 text-xs font-semibold text-surface transition hover:opacity-90"
-          >
-            Sign in to save
-          </Link>
         </div>
       </div>
 
@@ -579,6 +599,23 @@ export function DemoDiagramEditor() {
             </div>
           ) : null}
         </div>
+        {selectedId ? (
+          <PropertiesPanel
+            key={`component:${selectedId}`}
+            selection={{
+              kind: "component",
+              component: state.components.find(
+                (component) => component.id === selectedId,
+              )!,
+              def: null,
+            }}
+            readOnly={false}
+            onSave={saveSelectedMetadata}
+            onRotate={rotateSelected}
+            onMirror={mirrorSelected}
+            lines={state.lines}
+          />
+        ) : null}
       </div>
 
       <div className="flex items-center gap-4 border-t border-border bg-surface px-4 py-1 text-xs text-muted">

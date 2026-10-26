@@ -6,10 +6,10 @@ test("playground is public and starts as a temporary empty editor", async ({
   await page.goto("/playground");
 
   await expect(page).toHaveURL(/\/playground$/);
-  await expect(page.getByText("Live demo")).toBeVisible();
-  await expect(
-    page.getByText("Temporary session · Nothing is saved"),
-  ).toBeVisible();
+  await expect(page.getByText("Live demo")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Sign in to save" })).toHaveCount(
+    0,
+  );
   await expect(page.getByRole("button", { name: "+ Add stage" })).toBeVisible();
   await expect(page.getByRole("button", { name: "+ Add line" })).toBeVisible();
   await expect(page.getByText("0 components")).toBeVisible();

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function PlaygroundPage() {
   return (
     <div className="flex h-screen min-h-[38rem] flex-col bg-background">
-      <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border bg-surface px-4">
+      <header className="flex min-h-14 items-center gap-4 border-b border-border bg-surface px-4">
         <Link
           href="/"
           aria-label="CryoMap home"
@@ -24,13 +24,6 @@ export default function PlaygroundPage() {
           </span>
           CryoMap
         </Link>
-
-        <div className="text-right">
-          <p className="text-sm font-semibold text-foreground">Live demo</p>
-          <p className="text-xs text-muted">
-            Temporary session · Nothing is saved
-          </p>
-        </div>
       </header>
 
       <main className="relative min-h-0 flex-1">
