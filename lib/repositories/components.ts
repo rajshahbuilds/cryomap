@@ -17,10 +17,10 @@ export const componentsRepo = (db: Db) => ({
 
   // Snapshot-compatible inputs allow missing sheet ids; live writes are
   // constrained by the database NOT NULL check. Restore remaps them first.
-  async create(input: ComponentCreateInput): Promise<Component> {
+  async create(input: ComponentCreateInput, id?: string): Promise<Component> {
     const res = await db
       .from("components")
-      .insert({ ...input, sheet_id: input.sheet_id! })
+      .insert({ ...input, ...(id ? { id } : {}), sheet_id: input.sheet_id! })
       .select()
       .single();
     return unwrap(res) as Component;
@@ -35,9 +35,10 @@ export const componentsRepo = (db: Db) => ({
   },
 
   async update(id: string, patch: ComponentUpdateInput): Promise<Component> {
+    const { sheet_id, ...values } = patch;
     const res = await db
       .from("components")
-      .update({ ...patch, sheet_id: patch.sheet_id ?? undefined })
+      .update({ ...values, ...(sheet_id != null ? { sheet_id } : {}) })
       .eq("id", id)
       .select()
       .single();

@@ -28,10 +28,11 @@ export const wireSegmentPropertiesRepo = (db: Db) => ({
   },
   async create(
     input: WireSegmentPropertiesCreateInput,
+    id?: string,
   ): Promise<WireSegmentProperties> {
     const res = await db
       .from("wire_segment_properties")
-      .insert(payload(input))
+      .insert({ ...payload(input), ...(id ? { id } : {}) })
       .select()
       .single();
     return normalize(unwrap(res) as WireSegmentProperties);

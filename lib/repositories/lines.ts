@@ -13,10 +13,10 @@ export const linesRepo = (db: Db) => ({
 
   // Snapshot-compatible inputs allow missing sheet ids; live writes are
   // constrained by the database NOT NULL check. Restore remaps them first.
-  async create(input: LineCreateInput): Promise<Line> {
+  async create(input: LineCreateInput, id?: string): Promise<Line> {
     const res = await db
       .from("lines")
-      .insert({ ...input, sheet_id: input.sheet_id! })
+      .insert({ ...input, ...(id ? { id } : {}), sheet_id: input.sheet_id! })
       .select()
       .single();
     return unwrap(res) as Line;
@@ -31,9 +31,10 @@ export const linesRepo = (db: Db) => ({
   },
 
   async update(id: string, patch: LineUpdateInput): Promise<Line> {
+    const { sheet_id, ...values } = patch;
     const res = await db
       .from("lines")
-      .update({ ...patch, sheet_id: patch.sheet_id ?? undefined })
+      .update({ ...values, ...(sheet_id != null ? { sheet_id } : {}) })
       .eq("id", id)
       .select()
       .single();

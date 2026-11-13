@@ -7,6 +7,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
+import { wirePropertiesCommand } from "@/lib/diagram/wireProperties";
+import { preserveWiresCommand } from "@/lib/diagram/wireLifecycle";
+import { WirePropertiesPanel } from "./WirePropertiesPanel";
 import type {
   Component,
   CustomComponentDef,
@@ -254,9 +258,7 @@ export function DiagramEditor({
   useEffect(() => {
     connectingRef.current = connecting;
   });
-  const [selectedConnectionId, setSelectedConnectionId] = useState<
-    string | null
-  >(null);
+  const [selectedWireKey, setSelectedWireKey] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<
     string | null
   >(null);
@@ -294,6 +296,7 @@ export function DiagramEditor({
     canUndo,
     canRedo,
     isDirty: undoDirty,
+    pending: editPending,
   } = useUndoRedo(
     reload,
     (error) => toast.error(errorToMessage(error, "Couldn’t save your change")),
@@ -350,8 +353,8 @@ export function DiagramEditor({
   };
 
   const handleCheckIn = useCallback(() => {
-    if (lock.state === "LOCKED_BY_ME") setCheckInOpen(true);
-  }, [lock.state]);
+    if (lock.state === "LOCKED_BY_ME" && !editPending) setCheckInOpen(true);
+  }, [lock.state, editPending]);
 
   const handleConfirmCheckIn = (values: CheckInValues) => {
     setBusy(true);
@@ -695,7 +698,7 @@ export function DiagramEditor({
           // No drag — a plain click on the trunk selects the line (and shows its
           // signal chains), the same as clicking its label.
           setSelectedIds([]);
-          setSelectedConnectionId(null);
+          setSelectedWireKey(null);
           setSelectedLineId(lineId);
         }
         return;
@@ -721,7 +724,9 @@ export function DiagramEditor({
         let createdId: string | null = null;
         applyEdit({
           redo: async (db) => {
-            createdId = (await createPlacedComponent(db, input)).id;
+            createdId = (
+              await createPlacedComponent(db, input, createdId ?? undefined)
+            ).id;
           },
           undo: async (db) => {
             if (createdId) await deleteComponent(db, createdId);
@@ -746,18 +751,23 @@ export function DiagramEditor({
             const before = positionFieldsOf(component);
             const target = resolved.target;
             const after = targetToPosition(target);
-            applyEdit({
-              optimisticRedo: (state) =>
-                withComponentPosition(state, id, after),
-              optimisticUndo: (state) =>
-                withComponentPosition(state, id, before),
-              redo: async (db) => {
-                await moveComponentTo(db, id, target);
-              },
-              undo: async (db) => {
-                await setComponentPosition(db, id, before);
-              },
-            });
+            applyEdit(
+              preserveWiresCommand(
+                {
+                  optimisticRedo: (state) =>
+                    withComponentPosition(state, id, after),
+                  optimisticUndo: (state) =>
+                    withComponentPosition(state, id, before),
+                  redo: async (db) => {
+                    await moveComponentTo(db, id, target);
+                  },
+                  undo: async (db) => {
+                    await setComponentPosition(db, id, before);
+                  },
+                },
+                fridgeId,
+              ),
+            );
           }
         }
         return;
@@ -767,7 +777,7 @@ export function DiagramEditor({
       if (!dragging) {
         setSelectedIds([]);
         setSelectedLineId(null);
-        setSelectedConnectionId(null);
+        setSelectedWireKey(null);
       }
     },
     [
@@ -879,7 +889,7 @@ export function DiagramEditor({
   ) => {
     setSelectedIds([componentId]);
     setSelectedLineId(null);
-    setSelectedConnectionId(null);
+    setSelectedWireKey(null);
     if (sheetId && sheetId !== activeSheet?.id) sheetTabs.select(sheetId);
     // Center now if the component is already on-screen, else once its view loads.
     const hit = view?.positioned.find((p) => p.component.id === componentId);
@@ -945,15 +955,17 @@ export function DiagramEditor({
   const startConnect = (e: React.PointerEvent, anchor: PortAnchor) => {
     if (!canEdit || e.button !== 0) return;
     e.stopPropagation();
-    setSelectedConnectionId(null);
+    setSelectedWireKey(null);
     setConnecting({ from: anchor, cursor: anchor.point });
   };
 
-  /** Select an explicit connection (clears other selections). */
-  const selectConnection = (id: string) => {
+  /** Inspect either kind of wire, including while read-only. */
+  const selectWire = (id: string) => {
     setSelectedIds([]);
     setSelectedLineId(null);
-    setSelectedConnectionId(id);
+    setSelectedWireKey(id);
+    setSelectedAnnotationId(null);
+    setDraftNote(null);
   };
 
   const onComponentClick = (e: React.MouseEvent<SVGGElement>, id: string) => {
@@ -961,7 +973,7 @@ export function DiagramEditor({
     // component without holding the lock; mutations stay gated by `canEdit`.
     e.stopPropagation();
     setSelectedLineId(null);
-    setSelectedConnectionId(null);
+    setSelectedWireKey(null);
     setSelectedIds((current) => toggleSelection(current, id, e.shiftKey));
   };
 
@@ -972,6 +984,7 @@ export function DiagramEditor({
     if (!canEdit) return;
     e.preventDefault();
     setSelectedLineId(null);
+    setSelectedWireKey(null);
     setSelectedIds([component.id]);
     setMenu({ x: e.clientX, y: e.clientY, component });
   };
@@ -979,7 +992,7 @@ export function DiagramEditor({
   const selectLine = (lineId: string) => {
     // Allowed read-only as well (view line properties); see onComponentClick.
     setSelectedIds([]);
-    setSelectedConnectionId(null);
+    setSelectedWireKey(null);
     setSelectedLineId(lineId);
   };
 
@@ -1041,7 +1054,7 @@ export function DiagramEditor({
     applyEdit({
       redo: async (db) => {
         const copies = await Promise.all(
-          items.map((c) => duplicateComponent(db, c)),
+          items.map((c, i) => duplicateComponent(db, c, ids[i])),
         );
         ids = copies.map((c) => c.id);
       },
@@ -1056,7 +1069,7 @@ export function DiagramEditor({
       deselect: () => {
         setSelectedIds([]);
         setSelectedLineId(null);
-        setSelectedConnectionId(null);
+        setSelectedWireKey(null);
         setSelectedAnnotationId(null);
         setDraftNote(null);
         setMenu(null);
@@ -1074,11 +1087,11 @@ export function DiagramEditor({
           return;
         }
         // A selected connection takes priority over component deletion.
-        if (selectedConnectionId) {
+        if (selectedWireKey) {
           const connection = view?.connections.find(
-            (c) => c.id === selectedConnectionId,
+            (c) => c.id === selectedWireKey,
           );
-          setSelectedConnectionId(null);
+          setSelectedWireKey(null);
           if (connection) applyEdit(deleteConnectionCommand(connection));
           return;
         }
@@ -1086,17 +1099,22 @@ export function DiagramEditor({
         let items = [...selectedComponents];
         const deletedIds = items.map((component) => component.id);
         setSelectedIds([]);
-        applyEdit({
-          optimisticRedo: (state) => withoutComponents(state, deletedIds),
-          redo: async (db) => {
-            await Promise.all(items.map((c) => deleteComponent(db, c.id)));
-          },
-          undo: async (db) => {
-            items = await Promise.all(
-              items.map((c) => recreateComponent(db, c)),
-            );
-          },
-        });
+        applyEdit(
+          preserveWiresCommand(
+            {
+              optimisticRedo: (state) => withoutComponents(state, deletedIds),
+              redo: async (db) => {
+                await Promise.all(items.map((c) => deleteComponent(db, c.id)));
+              },
+              undo: async (db) => {
+                items = await Promise.all(
+                  items.map((c) => recreateComponent(db, c)),
+                );
+              },
+            },
+            fridgeId,
+          ),
+        );
       },
       rotate: () => rotateComponents(selectedComponents),
       mirror: () => mirrorComponents(selectedComponents),
@@ -1113,6 +1131,32 @@ export function DiagramEditor({
     canEdit,
   );
 
+  const selectedWire = [
+    ...(view?.wires ?? []),
+    ...(view?.explicitWires ?? []),
+  ].find((wire) => wire.key === selectedWireKey);
+  const wireEndpoints = (() => {
+    const reference = selectedWire?.reference;
+    if (!reference) return "";
+    const connection =
+      reference.kind === "explicit"
+        ? view?.connections.find((c) => c.id === reference.id)
+        : reference;
+    if (!connection) return "";
+    const name = (id: string) => {
+      const component = view?.components.find((c) => c.id === id);
+      return (
+        component?.label ||
+        (component
+          ? component.component_type === "custom"
+            ? (view?.customDefById.get(component.custom_def_id ?? "")?.name ??
+              "Custom component")
+            : getComponentDefinition(component.component_type).label
+          : "Component")
+      );
+    };
+    return `${name(connection.from_component_id)} → ${name(connection.to_component_id)}`;
+  })();
   let panelSelection: PanelSelection | null = null;
   if (view) {
     if (selectedLineId) {
@@ -1213,15 +1257,20 @@ export function DiagramEditor({
             const id = menu.component.id;
             let item = menu.component;
             setSelectedIds((s) => s.filter((x) => x !== id));
-            applyEdit({
-              optimisticRedo: (state) => withoutComponents(state, [id]),
-              redo: async (db) => {
-                await deleteComponent(db, item.id);
-              },
-              undo: async (db) => {
-                item = await recreateComponent(db, item);
-              },
-            });
+            applyEdit(
+              preserveWiresCommand(
+                {
+                  optimisticRedo: (state) => withoutComponents(state, [id]),
+                  redo: async (db) => {
+                    await deleteComponent(db, item.id);
+                  },
+                  undo: async (db) => {
+                    item = await recreateComponent(db, item);
+                  },
+                },
+                fridgeId,
+              ),
+            );
           },
         },
         ...(menu.component.component_type === "custom" &&
@@ -1246,7 +1295,7 @@ export function DiagramEditor({
     <div className="flex h-full flex-col">
       <Toolbar
         lockState={lock.state}
-        busy={busy || lock.loading}
+        busy={busy || lock.loading || editPending}
         dirty={undoDirty}
         canUndo={canUndo}
         canRedo={canRedo}
@@ -1461,15 +1510,19 @@ export function DiagramEditor({
                       : undefined
                   }
                 />
-                <WireSegments wires={view.wires} />
+                <WireSegments
+                  wires={view.wires}
+                  onSelect={selectWire}
+                  selectedKey={selectedWireKey}
+                />
                 {/* Hit layer: beneath components so it doesn't block hovering
                     them; selects a wire clicked in open space. */}
                 <WireSegments
                   wires={view.explicitWires}
                   variant="explicit"
                   layer="hit"
-                  onSelect={canEdit ? selectConnection : undefined}
-                  selectedKey={selectedConnectionId}
+                  onSelect={selectWire}
+                  selectedKey={selectedWireKey}
                 />
                 {resizePreview ? (
                   <line
@@ -1671,7 +1724,7 @@ export function DiagramEditor({
                   wires={view.explicitWires}
                   variant="explicit"
                   layer="visual"
-                  selectedKey={selectedConnectionId}
+                  selectedKey={selectedWireKey}
                 />
                 <WireJunctions points={view.junctions} />
                 <AnnotationLayer
@@ -1697,7 +1750,24 @@ export function DiagramEditor({
           )}
         </div>
 
-        {status === "ready" && panelSelection ? (
+        {status === "ready" && selectedWire?.reference ? (
+          <WirePropertiesPanel
+            key={`wire:${selectedWire.key}`}
+            properties={selectedWire.properties ?? DEFAULT_WIRE_PROPERTIES}
+            endpoints={wireEndpoints}
+            readOnly={!canEdit}
+            onSave={(patch) => {
+              if (canEdit && selectedWire.reference)
+                applyEdit(
+                  wirePropertiesCommand(
+                    selectedWire.reference,
+                    selectedWire.properties ?? DEFAULT_WIRE_PROPERTIES,
+                    patch,
+                  ),
+                );
+            }}
+          />
+        ) : status === "ready" && panelSelection ? (
           <PropertiesPanel
             key={
               panelSelection.kind === "component"
@@ -1823,7 +1893,7 @@ export function DiagramEditor({
       {expiry ? (
         <LockExpiryModal
           recovery={expiry}
-          busy={busy || lock.loading}
+          busy={busy || lock.loading || editPending}
           onReacquire={handleReacquire}
           onExport={handleExportState}
           onDismiss={() => setExpiry(null)}

@@ -1,0 +1,350 @@
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { test, expect } from "@playwright/test";
+import { createServerClient } from "@supabase/ssr";
+import type { Database } from "../lib/types/database";
+
+// Normal local user authentication, including the same SSR cookies as the app.
+// Each run owns a new workspace and removes only that workspace on completion.
+test("wire properties survive edits, undo, component deletion, reload, check-in, and export", async ({
+  page,
+  context,
+}, testInfo) => {
+  const url = process.env.CRYOMAP_TEST_SUPABASE_URL!;
+  if (url !== "http://127.0.0.1:54321")
+    throw new Error("Refusing to test against a non-local database.");
+  const cookies = new Map<string, string>();
+  const db = createServerClient<Database>(
+    url,
+    process.env.CRYOMAP_TEST_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => [...cookies].map(([name, value]) => ({ name, value })),
+        setAll: (values) => {
+          for (const { name, value } of values) cookies.set(name, value);
+        },
+      },
+    },
+  );
+  const check = <
+    T extends { data: unknown; error: { message: string } | null },
+  >(
+    result: T,
+  ): T["data"] => {
+    if (result.error) throw new Error(result.error.message);
+    return result.data;
+  };
+  check(
+    await db.auth.signInWithPassword({
+      email: "developer@cryomap.test",
+      password: "Cryomap-local-development-2026!",
+    }),
+  );
+  await context.addCookies(
+    [...cookies].map(([name, value]) => ({
+      name,
+      value,
+      domain: "localhost",
+      path: "/",
+      sameSite: "Lax" as const,
+    })),
+  );
+  const workspace = check(
+    await db.rpc("create_workspace", {
+      workspace_name: `Wire browser test ${randomUUID()}`,
+    }),
+  )!;
+  const fridge = randomUUID(),
+    sheet = randomUUID(),
+    bench = randomUUID(),
+    line = randomUUID();
+  const stageA = randomUUID(),
+    stageB = randomUUID(),
+    a = randomUUID(),
+    b = randomUUID(),
+    source = randomUUID(),
+    port = randomUUID(),
+    connection = randomUUID();
+  try {
+    check(
+      await db.from("fridges").insert({
+        id: fridge,
+        name: "Wire browser test",
+        workspace_id: workspace.id,
+      }),
+    );
+    check(
+      await db.from("sheets").insert([
+        {
+          id: sheet,
+          fridge_id: fridge,
+          kind: "fridge",
+          name: "Fridge wiring",
+          sort_order: 0,
+        },
+        {
+          id: bench,
+          fridge_id: fridge,
+          kind: "room_temp",
+          name: "Bench wiring",
+          sort_order: 1,
+        },
+      ]),
+    );
+    check(
+      await db.from("stages").insert([
+        {
+          id: stageA,
+          fridge_id: fridge,
+          sheet_id: sheet,
+          name: "4 K",
+          sort_order: 0,
+          height_px: 180,
+        },
+        {
+          id: stageB,
+          fridge_id: fridge,
+          sheet_id: sheet,
+          name: "MXC",
+          sort_order: 1,
+          height_px: 180,
+        },
+      ]),
+    );
+    check(
+      await db.from("lines").insert({
+        id: line,
+        fridge_id: fridge,
+        sheet_id: sheet,
+        name: "Signal",
+        sort_order: 0,
+      }),
+    );
+    check(
+      await db.from("components").insert([
+        {
+          id: a,
+          fridge_id: fridge,
+          sheet_id: sheet,
+          line_id: line,
+          stage_id: stageA,
+          free_floating: false,
+          component_type: "attenuator",
+          label: "Top",
+        },
+        {
+          id: b,
+          fridge_id: fridge,
+          sheet_id: sheet,
+          line_id: line,
+          stage_id: stageB,
+          free_floating: false,
+          component_type: "filter_lp",
+          label: "Bottom",
+        },
+        {
+          id: source,
+          fridge_id: fridge,
+          sheet_id: bench,
+          free_floating: true,
+          x_abs: 240,
+          y_abs: 200,
+          component_type: "signal_generator",
+          label: "Source",
+        },
+        {
+          id: port,
+          fridge_id: fridge,
+          sheet_id: bench,
+          free_floating: true,
+          x_abs: 640,
+          y_abs: 200,
+          component_type: "fridge_port",
+          label: "Port",
+        },
+      ]),
+    );
+    check(
+      await db.from("connections").insert({
+        id: connection,
+        fridge_id: fridge,
+        sheet_id: bench,
+        from_component_id: source,
+        from_port_side: "right",
+        to_component_id: port,
+        to_port_side: "left",
+      }),
+    );
+    page.on("dialog", (dialog) => {
+      void dialog.accept();
+    });
+    await page.goto(`/fridges/${fridge}`);
+    // A vertical SVG path has zero geometric width; click its actual stroked
+    // midpoint rather than asking Playwright to click a zero-width bounding box.
+    const midpoint = await page
+      .getByRole("button", { name: "Wire", exact: true })
+      .evaluate((element) => {
+        const path = element as SVGPathElement;
+        const point = path.getPointAtLength(path.getTotalLength() / 2);
+        const screen = new DOMPoint(point.x, point.y).matrixTransform(
+          path.getScreenCTM()!,
+        );
+        return { x: screen.x, y: screen.y };
+      });
+    await page.mouse.click(midpoint.x, midpoint.y);
+    await expect(
+      page.getByLabel("Construction", { exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("button", { name: "Check Out to Edit" }).click();
+    await expect(
+      page.getByLabel("Construction", { exact: true }),
+    ).toBeEnabled();
+    await page
+      .getByLabel("Construction", { exact: true })
+      .selectOption("twisted_pair");
+    await expect(page.getByLabel("Construction", { exact: true })).toHaveValue(
+      "twisted_pair",
+    );
+    await page.getByLabel("Label", { exact: true }).fill("Sensor A");
+    await page.getByLabel("Label", { exact: true }).press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Wire: Sensor A", exact: true }),
+    ).toBeAttached();
+    await expect(
+      page.locator("svg text").filter({ hasText: /^Sensor A$/ }),
+    ).toHaveCount(0);
+    await page.getByLabel("Show label on diagram").check();
+    await expect(
+      page.locator("svg text").filter({ hasText: /^Sensor A$/ }),
+    ).toHaveCount(1);
+    await page.getByLabel("Length", { exact: true }).fill("1.25");
+    await page.getByLabel("Length unit").selectOption("m");
+    await page.getByLabel("Gauge / diameter", { exact: true }).click();
+    await page.getByLabel("Gauge / diameter", { exact: true }).fill("36");
+    await page.getByLabel("Conductor count").click();
+    await page.getByLabel("Conductor count").fill("2");
+    await page.getByLabel("Conductor count").press("Tab");
+    await expect(
+      page.getByRole("button", { name: "Undo", exact: true }),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.getByLabel("Conductor count")).toHaveValue("");
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await expect(page.getByLabel("Conductor count")).toHaveValue("2");
+    const properties = async () =>
+      check(
+        await db
+          .from("wire_segment_properties")
+          .select("wire_properties")
+          .eq("fridge_id", fridge)
+          .single(),
+      )!.wire_properties;
+    await expect.poll(properties).toMatchObject({
+      construction: "twisted_pair",
+      label: "Sensor A",
+      show_label: true,
+      length: { value: 1.25, unit: "m" },
+      size: { value: 36, unit: "awg" },
+      conductor_count: 2,
+    });
+    await page.locator(`[data-component-id="${a}"]`).click();
+    await page.keyboard.press("Delete");
+    await expect(
+      page.getByRole("button", { name: "Wire: Sensor A", exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Wire: Sensor A", exact: true })
+      .press("Enter");
+    await expect(page.getByLabel("Construction", { exact: true })).toHaveValue(
+      "twisted_pair",
+    );
+    await expect(page.getByLabel("Length", { exact: true })).toHaveValue(
+      "1.25",
+    );
+    await page.screenshot({ path: testInfo.outputPath("wire-properties.png") });
+    await page.reload();
+    await page
+      .getByRole("button", { name: "Wire: Sensor A", exact: true })
+      .press("Enter");
+    await expect(
+      page.getByLabel("Gauge / diameter", { exact: true }),
+    ).toHaveValue("36");
+    await page
+      .getByRole("button", { name: "Bench wiring", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Wire", exact: true })
+      .press("Enter");
+    await page
+      .getByLabel("Construction", { exact: true })
+      .selectOption("coaxial");
+    await expect(page.getByLabel("Shield material")).toBeVisible();
+    await page.getByLabel("Label", { exact: true }).fill("RF feed");
+    await page.getByLabel("Label", { exact: true }).press("Tab");
+    await expect
+      .poll(
+        async () =>
+          check(
+            await db
+              .from("connections")
+              .select("wire_properties")
+              .eq("id", connection)
+              .single(),
+          )!.wire_properties,
+      )
+      .toMatchObject({
+        construction: "coaxial",
+        label: "RF feed",
+        show_label: false,
+      });
+    await expect(
+      page.getByRole("button", { name: "Check In", exact: true }),
+    ).toBeEnabled();
+    await page.getByRole("button", { name: "Check In", exact: true }).click();
+    await page.getByPlaceholder("What changed?").fill("Verify wire properties");
+    await page.getByRole("button", { name: "Check in", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: "Check Out to Edit" }),
+    ).toBeVisible();
+    const version = check(
+      await db
+        .from("versions")
+        .select("snapshot")
+        .eq("fridge_id", fridge)
+        .single(),
+    )!;
+    expect(version.snapshot).toMatchObject({
+      connections: [
+        { wire_properties: { construction: "coaxial", label: "RF feed" } },
+      ],
+      wire_segment_properties: [
+        {
+          wire_properties: { construction: "twisted_pair", label: "Sensor A" },
+        },
+      ],
+    });
+    await page.locator('summary[aria-label="Export"]').click();
+    const downloaded = page.waitForEvent("download");
+    await page.getByRole("menuitem", { name: "JSON snapshot" }).click();
+    const file = await downloaded;
+    const exported = JSON.parse(await readFile((await file.path())!, "utf8"));
+    expect(exported).toMatchObject({
+      wire_segment_properties: [{ wire_properties: { label: "Sensor A" } }],
+    });
+    for (const [label, header] of [
+      ["PNG image", "89504e470d0a1a0a"],
+      ["PDF document", "255044462d"],
+    ]) {
+      await page.locator('summary[aria-label="Export"]').click();
+      const download = page.waitForEvent("download");
+      await page.getByRole("menuitem", { name: label }).click();
+      const result = await download;
+      const bytes = await readFile((await result.path())!);
+      expect(bytes.length).toBeGreaterThan(1000);
+      expect(bytes.subarray(0, header.length / 2).toString("hex")).toBe(header);
+    }
+  } finally {
+    check(await db.from("workspaces").delete().eq("id", workspace.id));
+  }
+});

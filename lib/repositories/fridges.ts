@@ -40,9 +40,10 @@ export const fridgesRepo = (db: Db) => ({
   },
 
   async update(id: string, patch: FridgeUpdateInput): Promise<Fridge> {
+    const { workspace_id, ...values } = patch;
     const res = await db
       .from("fridges")
-      .update({ ...patch, workspace_id: patch.workspace_id ?? undefined })
+      .update({ ...values, ...(workspace_id != null ? { workspace_id } : {}) })
       .eq("id", id)
       .select()
       .single();

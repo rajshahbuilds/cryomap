@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DiagramState, Fridge } from "@/lib/types";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { fridgesRepo } from "@/lib/repositories";
@@ -47,7 +47,9 @@ export function useDiagram(
   }>({ status: "loading", state: null, fridge: null, error: null });
   const [nonce, setNonce] = useState(0);
   const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const stateRevision = useRef(0);
   const updateState = useCallback((update: DiagramStateUpdate) => {
+    stateRevision.current++;
     setResult((current) =>
       current.state
         ? { ...current, state: update(current.state), error: null }
@@ -57,6 +59,7 @@ export function useDiagram(
 
   useEffect(() => {
     let active = true;
+    const fetchedRevision = stateRevision.current;
 
     (async () => {
       // Keep an already-rendered fridge mounted during background
@@ -79,10 +82,12 @@ export function useDiagram(
           loadDiagramState(db, fridgeId),
           fridgesRepo(db).get(fridgeId),
         ]);
-        if (!active) return;
+        // An older response must not overwrite an immediate canvas edit.
+        if (!active || fetchedRevision !== stateRevision.current) return;
         setResult({ status: "ready", state, fridge, error: null });
       } catch (error) {
-        if (!active) return;
+        // An older response must not overwrite an immediate canvas edit.
+        if (!active || fetchedRevision !== stateRevision.current) return;
         const message =
           error instanceof Error
             ? error.message

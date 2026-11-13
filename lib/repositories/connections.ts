@@ -21,13 +21,19 @@ export const connectionsRepo = (db: Db) => ({
     return (unwrap(res) as Connection[]).map(normalize);
   },
 
+  async get(id: string): Promise<Connection> {
+    const res = await db.from("connections").select("*").eq("id", id).single();
+    return normalize(unwrap(res) as Connection);
+  },
+
   // Historical snapshots permit missing sheet ids; live inserts are checked
   // by the database NOT NULL constraint after restore remaps the sheet.
-  async create(input: ConnectionCreateInput): Promise<Connection> {
+  async create(input: ConnectionCreateInput, id?: string): Promise<Connection> {
     const res = await db
       .from("connections")
       .insert({
         ...input,
+        ...(id ? { id } : {}),
         sheet_id: input.sheet_id!,
         wire_properties: wirePropertiesSchema.parse(
           input.wire_properties ?? {},
@@ -38,7 +44,9 @@ export const connectionsRepo = (db: Db) => ({
     return normalize(unwrap(res) as Connection);
   },
 
-  async createMany(inputs: ConnectionCreateInput[]): Promise<Connection[]> {
+  async createMany(
+    inputs: (ConnectionCreateInput & { id?: string })[],
+  ): Promise<Connection[]> {
     if (inputs.length === 0) return [];
     const res = await db
       .from("connections")

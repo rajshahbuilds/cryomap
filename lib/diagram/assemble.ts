@@ -1,3 +1,4 @@
+import { DEFAULT_WIRE_PROPERTIES, wireSegmentKey } from "@/lib/types";
 import type {
   Annotation,
   Component,
@@ -212,6 +213,14 @@ export function assembleDiagram(
       placedForWires.push({
         id: component.id,
         lineId: component.line_id,
+        ...(component.fridge_id && component.sheet_id
+          ? {
+              wireScope: {
+                fridge_id: component.fridge_id,
+                sheet_id: component.sheet_id,
+              },
+            }
+          : {}),
         x: anchor.x,
         y: anchor.y,
       });
@@ -263,6 +272,25 @@ export function assembleDiagram(
     portAt,
     obstacles,
   );
+
+  const segmentProperties = new Map(
+    state.wireSegmentProperties.map((s) => [
+      wireSegmentKey(s),
+      s.wire_properties,
+    ]),
+  );
+  for (const wire of wires) {
+    if (wire.reference?.kind === "implicit")
+      wire.properties =
+        segmentProperties.get(wireSegmentKey(wire.reference)) ??
+        DEFAULT_WIRE_PROPERTIES;
+  }
+  const connectionById = new Map(connections.map((c) => [c.id, c]));
+  for (const wire of explicitWires) {
+    wire.reference = { kind: "explicit", id: wire.key };
+    wire.properties =
+      connectionById.get(wire.key)?.wire_properties ?? DEFAULT_WIRE_PROPERTIES;
+  }
 
   // Hops, junction dots, and lane separation are derived across *all* wires at
   // once — here is the only place that sees both implicit trunks and explicit

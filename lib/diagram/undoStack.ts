@@ -15,6 +15,8 @@ export interface UndoCommand {
   optimisticRedo?: DiagramStateUpdate;
   /** Apply the inverse operation to the browser copy before the DB responds. */
   optimisticUndo?: DiagramStateUpdate;
+  /** Reload after writes whose cascades or server defaults exceed the local patch. */
+  reconcileAfter?: boolean;
 }
 
 /** Past (undoable) and future (redoable) command stacks. */

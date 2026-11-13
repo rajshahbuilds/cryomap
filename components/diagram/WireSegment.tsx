@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import {
   wireAppearance,
+  sampleWirePath,
   WIRE_CONSTRUCTION_META,
   type WireConstruction,
 } from "@/lib/diagram/wireAppearance";
@@ -35,6 +36,8 @@ interface WireSegmentProps {
   construction?: WireConstruction;
   /** Precomputed path (e.g. orthogonal routing); defaults to a straight segment. */
   path?: string;
+  label?: string | null;
+  showLabel?: boolean;
   /** When set, the wire is selectable: a fat hit-path invokes this on click. */
   onSelect?: () => void;
   /** Renders the selected highlight beneath the wire. */
@@ -49,6 +52,8 @@ export function WireSegment({
   variant = "implicit",
   construction = "unspecified",
   path,
+  label,
+  showLabel = false,
   onSelect,
   selected = false,
   layer = "both",
@@ -63,6 +68,29 @@ export function WireSegment({
     [d, construction, layer],
   );
   const showVisual = layer !== "hit";
+  const labelPoint = useMemo(() => {
+    if (!showLabel || !label || !showVisual) return null;
+    const samples = sampleWirePath(d);
+    const middle = Math.floor((samples?.length ?? 0) / 2);
+    const point = samples?.[middle] ?? {
+      x: (from.x + to.x) / 2,
+      y: (from.y + to.y) / 2,
+    };
+    const before = samples?.[Math.max(0, middle - 1)] ?? {
+      x: from.x,
+      y: from.y,
+    };
+    const after = samples?.[
+      Math.min((samples?.length ?? 1) - 1, middle + 1)
+    ] ?? { x: to.x, y: to.y };
+    const vertical =
+      Math.abs(after.y - before.y) > Math.abs(after.x - before.x);
+    return {
+      x: point.x + (vertical ? 14 : 0),
+      y: point.y + (vertical ? 4 : -12),
+      vertical,
+    };
+  }, [d, from.x, from.y, to.x, to.y, label, showLabel, showVisual]);
   const showHit = layer !== "visual" && Boolean(onSelect);
   return (
     <>
@@ -96,6 +124,22 @@ export function WireSegment({
             />
           ))
         : null}
+      {labelPoint ? (
+        <text
+          x={labelPoint.x}
+          y={labelPoint.y}
+          textAnchor={labelPoint.vertical ? "start" : "middle"}
+          fontSize={11}
+          fill={style.stroke}
+          stroke="#ffffff"
+          strokeWidth={4}
+          paintOrder="stroke"
+          strokeLinejoin="round"
+          pointerEvents="none"
+        >
+          {label}
+        </text>
+      ) : null}
       {showHit ? (
         // Invisible fat path widens the click target for a thin wire.
         <path
@@ -106,6 +150,17 @@ export function WireSegment({
           strokeLinecap="round"
           pointerEvents="stroke"
           style={{ cursor: "pointer" }}
+          role="button"
+          tabIndex={0}
+          aria-label={label ? `Wire: ${label}` : "Wire"}
+          onPointerDown={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              onSelect?.();
+            }
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onSelect?.();
@@ -147,7 +202,9 @@ export function WireSegments({
           to={wire.to}
           path={wire.path}
           variant={variant}
-          construction={wire.construction}
+          construction={wire.properties?.construction ?? wire.construction}
+          label={wire.properties?.label}
+          showLabel={wire.properties?.show_label}
           onSelect={onSelect ? () => onSelect(wire.key) : undefined}
           selected={selectedKey === wire.key}
           layer={layer}

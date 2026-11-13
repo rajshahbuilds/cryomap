@@ -82,6 +82,23 @@ the database. It is available only in development; production continues to
 show the ordinary playground. Existing diagrams retain their plain wires until
 construction properties are connected to the editor.
 
+## Editing wire properties
+
+Click a wire on either sheet to inspect it in the right-hand panel. Check out
+before editing. Construction and label visibility update immediately; text and
+measurements save when you leave their field. Optional values can be cleared.
+Labels are hidden by default and appear only after enabling **Show label on
+diagram**. Material is independent of construction; coaxial and triaxial wires
+also expose their shield materials. Gauge accepts AWG (including `2/0`, `3/0`,
+and `4/0`) or a diameter in mm or µm.
+
+Each automatic segment keeps its properties for that pair of components on that
+line. Inserting a component creates new, unspecified segments. Removing it
+reveals the original pair and its saved properties. Undo restores cable details
+when components, lines, stages, or sheets are deleted or reassigned. Undo/redo
+keeps entity ids stable; duplication and version restoration still create fresh
+ids and remap the wire references.
+
 ## Verify changes
 
 ```bash
@@ -99,9 +116,20 @@ throwaway PostgreSQL cluster and applies all migrations, without touching the
 running Supabase database. It requires local PostgreSQL binaries; see
 [the database test README](../supabase/tests/README.md).
 
-Browser tests currently cover public/auth routing and the playground. Use the
-signed-in local sample for persistence, checkout/check-in, history, duplication,
-and export checks until authenticated browser coverage is added.
+The default browser suite covers public/auth routing and the playground. An
+additional authenticated wire suite uses the running local Supabase instance:
+
+```bash
+pnpm test:wires
+```
+
+Run `pnpm dev:setup` first. The suite refuses a hosted database URL, signs in as
+the normal local test user, creates its own disposable workspace, and removes
+that workspace on completion. It verifies both wire kinds, hidden labels,
+undo/redo, component deletion and restoration, reload, check-in, and
+JSON/PNG/PDF exports. It runs separately from the default CI browser suite,
+which does not start Supabase. Continue using the signed-in local sample for
+manual history/restore and duplication review.
 
 Do not run a production build and the development server simultaneously: both
 write Next.js build artifacts in this checkout.

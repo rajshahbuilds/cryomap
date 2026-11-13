@@ -11,8 +11,12 @@ export const sheetsRepo = (db: Db) => ({
     return unwrap(res) as Sheet[];
   },
 
-  async create(input: SheetCreateInput): Promise<Sheet> {
-    const res = await db.from("sheets").insert(input).select().single();
+  async create(input: SheetCreateInput, id?: string): Promise<Sheet> {
+    const res = await db
+      .from("sheets")
+      .insert({ ...input, ...(id ? { id } : {}) })
+      .select()
+      .single();
     return unwrap(res) as Sheet;
   },
 

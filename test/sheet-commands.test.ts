@@ -151,22 +151,22 @@ describe("deleteSheetCommand", () => {
     const restored = state.sheets.find((s) => s.kind === "room_temp")!;
     expect(restored.name).toBe("Room temp wiring");
     expect(restored.sort_order).toBe(1);
-    // A fresh id, so anything holding the old one must re-resolve.
-    expect(restored.id).not.toBe(BENCH);
+    // Undo keeps ids stable so earlier edits still address these entities.
+    expect(restored.id).toBe(BENCH);
 
     const restoredComponents = state.components.filter(
       (c) => c.sheet_id === restored.id,
     );
     expect(restoredComponents).toHaveLength(2);
 
-    // The connection survives, re-pointed at the components' fresh ids.
+    // The connection survives with its original endpoint identities.
     expect(state.connections).toHaveLength(1);
     const wire = state.connections[0];
     expect(wire.sheet_id).toBe(restored.id);
     const ids = restoredComponents.map((c) => c.id);
     expect(ids).toContain(wire.from_component_id);
     expect(ids).toContain(wire.to_component_id);
-    expect(wire.from_component_id).not.toBe("src");
+    expect(wire.from_component_id).toBe("src");
   });
 
   it("deletes a fridge sheet with its stages and lines", async () => {
@@ -183,7 +183,7 @@ describe("deleteSheetCommand", () => {
     expect(state.components.map((c) => c.id).sort()).toEqual(["dst", "src"]);
   });
 
-  it("undo re-points a restored component at its fresh stage and line", async () => {
+  it("undo restores the component with its original stage and line", async () => {
     const fake = seed();
     const db = asDb(fake);
     const command = deleteSheetCommand(fridgeSheetRow, fridgeContents);
@@ -193,15 +193,15 @@ describe("deleteSheetCommand", () => {
 
     const state = await loadDiagramState(db, F);
     const restored = state.sheets.find((s) => s.kind === "fridge")!;
-    expect(restored.id).not.toBe(FRIDGE_SHEET);
+    expect(restored.id).toBe(FRIDGE_SHEET);
 
     const [stage] = state.stages;
     const [line] = state.lines;
     expect(stage.sheet_id).toBe(restored.id);
     expect(line.sheet_id).toBe(restored.id);
-    expect(stage.id).not.toBe("mxc");
+    expect(stage.id).toBe("mxc");
 
-    // The component follows all three onto their fresh ids — a stale stage_id
+    // The component follows its restored parents — a missing stage_id
     // would leave it unplaceable, and `assembleDiagram` would silently drop it.
     const component = state.components.find((c) => c.sheet_id === restored.id)!;
     expect(component.stage_id).toBe(stage.id);

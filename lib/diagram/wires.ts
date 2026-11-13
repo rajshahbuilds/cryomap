@@ -1,3 +1,4 @@
+import type { WireReference, WireProperties } from "@/lib/types";
 import type { WireConstruction } from "./wireAppearance";
 import type { Port, PortSide } from "@/lib/types";
 import type { Point } from "@/lib/diagram/camera";
@@ -6,6 +7,8 @@ import type { Box } from "@/lib/diagram/placement";
 /** A drawable wire between two resolved logical points. */
 export interface Wire {
   key: string;
+  reference?: WireReference;
+  properties?: WireProperties;
   /** Visual construction; omitted wires retain their original appearance. */
   construction?: WireConstruction;
   from: Point;
@@ -495,6 +498,7 @@ export function separateLanes(
 export interface PlacedComponent {
   id: string;
   lineId: string;
+  wireScope?: { fridge_id: string; sheet_id: string };
   x: number;
   y: number;
 }
@@ -535,6 +539,17 @@ export function implicitWires(placed: PlacedComponent[]): Wire[] {
       const points = trunkRoute(from, to);
       wires.push({
         key: `${a.id}-${b.id}`,
+        ...(a.wireScope
+          ? {
+              reference: {
+                kind: "implicit" as const,
+                ...a.wireScope,
+                line_id: a.lineId,
+                from_component_id: a.id,
+                to_component_id: b.id,
+              },
+            }
+          : {}),
         from,
         to,
         points,

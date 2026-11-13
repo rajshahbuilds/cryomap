@@ -53,3 +53,27 @@ export function wireSegmentEndpoints(a: string, b: string) {
   ].sort();
   return { from_component_id, to_component_id };
 }
+
+/** The physical identity of an automatic segment; ordering uses wireSegmentEndpoints. */
+export interface WireSegmentIdentity {
+  fridge_id: string;
+  sheet_id: string;
+  line_id: string;
+  from_component_id: string;
+  to_component_id: string;
+}
+export type WireReference =
+  | { kind: "explicit"; id: string }
+  | ({ kind: "implicit" } & WireSegmentIdentity);
+export function wireSegmentKey(
+  segment: Pick<
+    WireSegmentIdentity,
+    "line_id" | "from_component_id" | "to_component_id"
+  >,
+): string {
+  const ends = wireSegmentEndpoints(
+    segment.from_component_id,
+    segment.to_component_id,
+  );
+  return `${segment.line_id}:${ends.from_component_id}:${ends.to_component_id}`;
+}

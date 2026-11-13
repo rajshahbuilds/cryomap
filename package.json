@@ -28,7 +28,8 @@
     "test:smoke": "playwright test -c playwright.smoke.config.ts",
     "test:rls": "bash supabase/tests/run.sh",
     "dev:setup": "node scripts/local-dev.mjs setup",
-    "dev:login": "node scripts/local-dev.mjs login"
+    "dev:login": "node scripts/local-dev.mjs login",
+    "test:wires": "playwright test -c playwright.wires.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
