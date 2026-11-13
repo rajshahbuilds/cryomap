@@ -1,3 +1,4 @@
+import type { WireConstruction } from "./wireAppearance";
 import type { Port, PortSide } from "@/lib/types";
 import type { Point } from "@/lib/diagram/camera";
 import type { Box } from "@/lib/diagram/placement";
@@ -5,6 +6,8 @@ import type { Box } from "@/lib/diagram/placement";
 /** A drawable wire between two resolved logical points. */
 export interface Wire {
   key: string;
+  /** Visual construction; omitted wires retain their original appearance. */
+  construction?: WireConstruction;
   from: Point;
   to: Point;
   /** Precomputed SVG path (e.g. orthogonal routing); falls back to a straight segment. */

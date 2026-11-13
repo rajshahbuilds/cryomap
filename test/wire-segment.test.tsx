@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderWithProviders } from "./render";
 import { WireSegment, WireSegments } from "@/components/diagram/WireSegment";
+import {
+  WIRE_CONSTRUCTIONS,
+  wireAppearance,
+} from "@/lib/diagram/wireAppearance";
 import type { Wire } from "@/lib/diagram/wires";
 
 describe("WireSegment", () => {
@@ -115,6 +119,54 @@ describe("WireSegment", () => {
     expect(container.querySelectorAll("path")).toHaveLength(3);
     expect(
       container.querySelector('path[stroke-width="6"]'),
+    ).toBeInTheDocument();
+  });
+  it.each(WIRE_CONSTRUCTIONS)(
+    "preserves click targets and selection for %s",
+    async (construction) => {
+      const onSelect = vi.fn();
+      const path = "M 0 0 H 40 V 40 H 100";
+      const { container, user } = renderWithProviders(
+        <svg>
+          <WireSegment
+            from={{ x: 0, y: 0 }}
+            to={{ x: 100, y: 40 }}
+            path={path}
+            construction={construction}
+            selected
+            onSelect={onSelect}
+          />
+        </svg>,
+      );
+      const hit = container.querySelector('path[stroke="transparent"]')!;
+      const highlight = container.querySelector('path[stroke="#2563eb"]')!;
+      const width = wireAppearance(path, construction).width;
+      expect(Number(hit.getAttribute("stroke-width"))).toBeGreaterThan(width);
+      expect(Number(highlight.getAttribute("stroke-width"))).toBeGreaterThan(
+        width,
+      );
+      expect(hit.getAttribute("d")).toBe(path);
+      await user.click(hit);
+      expect(onSelect).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps patterned visuals out of the hit-only layer", () => {
+    const { container } = renderWithProviders(
+      <svg>
+        <WireSegment
+          from={{ x: 0, y: 0 }}
+          to={{ x: 100, y: 0 }}
+          construction="two_twisted_pairs"
+          selected
+          onSelect={vi.fn()}
+          layer="hit"
+        />
+      </svg>,
+    );
+    expect(container.querySelectorAll("path")).toHaveLength(1);
+    expect(
+      container.querySelector('path[stroke="transparent"]'),
     ).toBeInTheDocument();
   });
 });

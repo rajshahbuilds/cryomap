@@ -71,6 +71,17 @@ Local tools:
 - Supabase Studio: http://127.0.0.1:54323
 - Captured local email: http://127.0.0.1:54324
 
+## Wire appearance prototype
+
+While `pnpm dev` is running, open
+http://localhost:3000/playground?preview=wires to compare the proposed wire
+constructions. Choose straight runs, bends, or crossings; adjust zoom from
+50% to 200%; and click a construction or wire to inspect its selection
+highlight. The preview uses the shared diagram renderer and does not write to
+the database. It is available only in development; production continues to
+show the ordinary playground. Existing diagrams retain their plain wires until
+construction properties are connected to storage and editing.
+
 ## Verify changes
 
 ```bash
