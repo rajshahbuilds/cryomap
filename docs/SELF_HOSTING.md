@@ -11,6 +11,8 @@ own hosting. This guide sets up a backend you fully own.
 > responsible for its data, security, and availability. Please don't present a
 > third-party deployment as the official CryoMap (see [`TRADEMARKS.md`](../TRADEMARKS.md)).
 
+For the isolated local test-account workflow, see [Local development](./LOCAL_DEVELOPMENT.md).
+
 ## 1. Prerequisites
 
 - Node 22+ and pnpm 11+ (`corepack enable` picks up the version in `package.json`)
