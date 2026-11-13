@@ -34,6 +34,7 @@ function build(
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   };
 }
 
@@ -225,6 +226,7 @@ describe("assembleDiagram custom defs", () => {
       customDefs: [def],
       connections: [],
       annotations: [],
+      wireSegmentProperties: [],
     });
     expect(view.customDefById.get("d1")?.name).toBe("Splitter");
   });
@@ -244,6 +246,7 @@ describe("assembleDiagram lineNameById", () => {
         customDefs: [],
         connections: [],
         annotations: [],
+        wireSegmentProperties: [],
       },
       "rt",
     );
@@ -264,6 +267,7 @@ describe("assembleDiagram annotations", () => {
         components: [],
         customDefs: [],
         connections: [],
+        wireSegmentProperties: [],
         annotations: [
           makeAnnotation({ id: "n1", sheet_id: "sheet1" }),
           makeAnnotation({ id: "n2", sheet_id: "sheet2" }),
@@ -333,6 +337,7 @@ describe("assembleDiagram crossing hops", () => {
         }),
       ],
       annotations: [],
+      wireSegmentProperties: [],
     });
     const cross = view.explicitWires.find((w) => w.key === "cross");
     // The crossing wire arcs (hops) over the drop instead of crossing it flat.

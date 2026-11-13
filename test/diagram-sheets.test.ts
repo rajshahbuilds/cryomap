@@ -1,3 +1,4 @@
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
 import { describe, it, expect } from "vitest";
 import { assembleDiagram } from "@/lib/diagram/assemble";
 import { fridgeSheet } from "@/lib/diagram/sheetService";
@@ -27,6 +28,7 @@ function state(overrides: Partial<DiagramState> = {}): DiagramState {
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
     ...overrides,
   };
 }
@@ -106,6 +108,7 @@ describe("assembleDiagram sheet scoping", () => {
           id: "conn-bench",
           fridge_id: "00000000-0000-4000-8000-000000000001",
           sheet_id: ROOM_TEMP_SHEET,
+          wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
           from_component_id: "siggen",
           from_port_side: "right",
           from_port_index: 0,

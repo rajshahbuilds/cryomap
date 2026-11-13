@@ -27,7 +27,7 @@ export const customComponentDefsRepo = (db: Db) => ({
         ...rest,
         created_by: createdBy ?? null,
         // `ports` is a jsonb column typed as `Json` by the generated client.
-        ...(ports ? { ports: ports as unknown as Json } : {}),
+        ...(ports ? { ports: ports as unknown as NonNullable<Json> } : {}),
       })
       .select()
       .single();
@@ -41,7 +41,7 @@ export const customComponentDefsRepo = (db: Db) => ({
     const rows = inputs.map(({ ports, ...rest }) => ({
       ...rest,
       created_by: createdBy ?? null,
-      ...(ports ? { ports: ports as unknown as Json } : {}),
+      ...(ports ? { ports: ports as unknown as NonNullable<Json> } : {}),
     }));
     const res = await db.from("custom_component_defs").insert(rows).select();
     return unwrap(res) as CustomComponentDef[];
@@ -56,7 +56,7 @@ export const customComponentDefsRepo = (db: Db) => ({
       .from("custom_component_defs")
       .update({
         ...rest,
-        ...(ports ? { ports: ports as unknown as Json } : {}),
+        ...(ports ? { ports: ports as unknown as NonNullable<Json> } : {}),
       })
       .eq("id", id)
       .select()

@@ -74,6 +74,7 @@ function emptyDemoState(): DiagramState {
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
   };
 }
 

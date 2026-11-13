@@ -63,4 +63,20 @@ echo "• running tenant-isolation suite"
 # Surface the suite's NOTICEs (pass/fail markers) on stderr→stdout.
 psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/tenant_isolation.sql" 2>&1
 
-echo "✓ tenant-isolation tests passed"
+echo "• running wire-properties suite"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/wire_properties.sql" 2>&1
+
+echo "• verifying upgrade from the pre-wire schema"
+export PGDATABASE=cryomap_upgrade_test
+createdb -U postgres "$PGDATABASE"
+run "$HERE/_bootstrap.sql"
+for f in "$MIGR"/*.sql; do
+  if [ "$(basename "$f")" = "20261113180000_wire_properties.sql" ]; then
+    run "$HERE/_wire_properties_seed.sql"
+  fi
+  run "$f"
+done
+run "$HERE/_grants.sql"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/_wire_properties_upgrade_check.sql" 2>&1
+
+echo "✓ tenant isolation, wire properties, and upgrade tests passed"

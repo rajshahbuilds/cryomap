@@ -61,6 +61,7 @@ function view(components: Component[], connections: Connection[]) {
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   };
   return assembleDiagram(state, RT);
 }
@@ -141,6 +142,7 @@ describe("chainsByLine", () => {
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   });
 
   it("groups two chains that terminate at the same line", () => {
@@ -178,6 +180,7 @@ describe("tracedChainsForLine", () => {
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   });
 
   it("returns only the chains linked to the given line", () => {
@@ -221,6 +224,7 @@ describe("lineComponents", () => {
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
   });
 
   it("orders line components warm → cold by stage, then by y within a band", () => {

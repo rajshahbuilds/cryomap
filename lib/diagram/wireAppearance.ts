@@ -1,18 +1,7 @@
 import type { Point } from "./camera";
 
-export const WIRE_CONSTRUCTIONS = [
-  "unspecified",
-  "single",
-  "parallel_pair",
-  "twisted_pair",
-  "two_twisted_pairs",
-  "ribbon",
-  "multicore",
-  "coaxial",
-  "triaxial",
-  "custom",
-] as const;
-export type WireConstruction = (typeof WIRE_CONSTRUCTIONS)[number];
+import { WIRE_CONSTRUCTIONS, type WireConstruction } from "@/lib/types/enums";
+export { WIRE_CONSTRUCTIONS, type WireConstruction };
 
 export const WIRE_CONSTRUCTION_META: Record<
   WireConstruction,

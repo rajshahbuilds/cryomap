@@ -3,6 +3,7 @@ import {
   annotationsRepo,
   componentsRepo,
   connectionsRepo,
+  wireSegmentPropertiesRepo,
   customComponentDefsRepo,
   linesRepo,
   sheetsRepo,
@@ -29,6 +30,7 @@ export async function loadDiagramState(
     customDefs,
     connections,
     annotations,
+    wireSegmentProperties,
   ] = await Promise.all([
     sheetsRepo(db).listByFridge(fridgeId),
     stagesRepo(db).listByFridge(fridgeId),
@@ -37,6 +39,7 @@ export async function loadDiagramState(
     customComponentDefsRepo(db).listByFridge(fridgeId),
     connectionsRepo(db).listByFridge(fridgeId),
     annotationsRepo(db).listByFridge(fridgeId),
+    wireSegmentPropertiesRepo(db).listByFridge(fridgeId),
   ]);
   return {
     sheets,
@@ -46,5 +49,6 @@ export async function loadDiagramState(
     customDefs,
     connections,
     annotations,
+    wireSegmentProperties,
   };
 }

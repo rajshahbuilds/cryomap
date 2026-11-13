@@ -80,7 +80,7 @@ constructions. Choose straight runs, bends, or crossings; adjust zoom from
 highlight. The preview uses the shared diagram renderer and does not write to
 the database. It is available only in development; production continues to
 show the ordinary playground. Existing diagrams retain their plain wires until
-construction properties are connected to storage and editing.
+construction properties are connected to the editor.
 
 ## Verify changes
 
@@ -119,7 +119,9 @@ supabase migration up
 For a fresh-install rehearsal, `supabase db reset` **deletes all local
 data** and reapplies every migration. Then run `pnpm dev:setup` to recreate the
 test account and sample. Separately rehearse upgrades by creating data with the
-old schema before applying the new migration.
+old schema before applying the new migration. `pnpm test:rls` now automates
+both a fresh install and an upgrade from the pre-wire schema in separate
+throwaway databases, including existing connections and historical snapshots.
 
 Use `supabase stop` to stop services while preserving their data. No hosted
 project linking, production credentials, or production database changes are

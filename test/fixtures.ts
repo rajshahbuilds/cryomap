@@ -5,6 +5,7 @@
  * against the canonical Zod schemas and can be composed into snapshots. Pass
  * `overrides` to set the fields a given test cares about.
  */
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
 import type {
   Annotation,
   Component,
@@ -68,6 +69,7 @@ export function makeDiagramState(
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
     ...overrides,
   };
 }
@@ -180,6 +182,7 @@ export function makeConnection(
     fridge_id: FRIDGE_ID,
     sheet_id: SHEET_ID,
     from_component_id: newId(),
+    wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
     from_port_side: "right",
     from_port_index: 0,
     to_component_id: newId(),

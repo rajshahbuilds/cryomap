@@ -58,6 +58,7 @@ describe("writeDiagramState connections", () => {
         makeConnection({ from_component_id: "a", to_component_id: "b" }),
       ],
       annotations: [],
+      wireSegmentProperties: [],
     });
 
     const newComponentIds = fake.tables.components.map((c) => c.id as string);
@@ -88,6 +89,7 @@ describe("writeDiagramState connections", () => {
         makeConnection({ from_component_id: "a", to_component_id: "gone" }),
       ],
       annotations: [],
+      wireSegmentProperties: [],
     });
     expect(await connectionsRepo(asDb(fake)).listByFridge(F)).toHaveLength(0);
   });

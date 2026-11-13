@@ -538,6 +538,7 @@ export function deleteSheetCommand(
             to_component_id: to,
             to_port_side: conn.to_port_side,
             to_port_index: conn.to_port_index,
+            wire_properties: conn.wire_properties,
           };
         })
         .filter((c): c is NonNullable<typeof c> => c !== null);
@@ -565,6 +566,8 @@ export function addConnectionCommand(
 export function deleteConnectionCommand(connection: Connection): UndoCommand {
   const input: ConnectionCreateInput = {
     fridge_id: connection.fridge_id ?? "",
+    sheet_id: connection.sheet_id,
+    wire_properties: connection.wire_properties,
     from_component_id: connection.from_component_id,
     from_port_side: connection.from_port_side,
     from_port_index: connection.from_port_index,

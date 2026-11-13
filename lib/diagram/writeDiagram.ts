@@ -1,8 +1,10 @@
+import { wireSegmentEndpoints } from "@/lib/types";
 import type { DiagramState, SheetCreateInput } from "@/lib/types";
 import {
   annotationsRepo,
   componentsRepo,
   connectionsRepo,
+  wireSegmentPropertiesRepo,
   customComponentDefsRepo,
   linesRepo,
   sheetsRepo,
@@ -165,10 +167,29 @@ export async function writeDiagramState(
         to_component_id: to,
         to_port_side: conn.to_port_side,
         to_port_index: conn.to_port_index,
+        wire_properties: conn.wire_properties,
       };
     })
     .filter((c): c is NonNullable<typeof c> => c !== null);
   await connectionsRepo(db).createMany(connections);
+
+  // Re-key generated segments after both line and component ids have changed.
+  const segments = (state.wireSegmentProperties ?? []).flatMap((segment) => {
+    const from = componentIdMap.get(segment.from_component_id);
+    const to = componentIdMap.get(segment.to_component_id);
+    const line = lineIdMap.get(segment.line_id);
+    if (!from || !to || !line) return [];
+    return [
+      {
+        fridge_id: fridgeId,
+        sheet_id: remapSheet(segment.sheet_id),
+        line_id: line,
+        ...wireSegmentEndpoints(from, to),
+        wire_properties: segment.wire_properties,
+      },
+    ];
+  });
+  await wireSegmentPropertiesRepo(db).createMany(segments);
 
   // Annotations reference only their sheet — remap it and re-create.
   if (state.annotations.length) {

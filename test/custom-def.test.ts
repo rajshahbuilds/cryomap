@@ -137,6 +137,7 @@ describe("def → instance propagation", () => {
       customDefs: [def],
       connections: [],
       annotations: [],
+      wireSegmentProperties: [],
     });
     // The positioned instance resolves to the shared def — editing the def
     // (a single row) changes every instance's rendering on reload.

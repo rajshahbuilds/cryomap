@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { wirePropertiesSchema, DEFAULT_WIRE_PROPERTIES } from "./wires";
 import {
   directionSchema,
   entityStatusSchema,
@@ -331,11 +332,13 @@ export const connectionRowSchema = z.object({
   to_component_id: uuid,
   to_port_side: portSideSchema,
   to_port_index: z.number().int(),
+  wire_properties: wirePropertiesSchema.default(DEFAULT_WIRE_PROPERTIES),
   created_at: timestamp,
 });
 export type Connection = z.infer<typeof connectionRowSchema>;
 
 export const connectionCreateSchema = z.object({
+  wire_properties: wirePropertiesSchema.optional(),
   fridge_id: uuid,
   sheet_id: uuid.nullish(),
   from_component_id: uuid,
@@ -346,6 +349,34 @@ export const connectionCreateSchema = z.object({
   to_port_index: z.number().int().nonnegative().optional(),
 });
 export type ConnectionCreateInput = z.infer<typeof connectionCreateSchema>;
+
+export const connectionUpdateSchema = z.object({
+  wire_properties: wirePropertiesSchema.optional(),
+});
+export type ConnectionUpdateInput = z.infer<typeof connectionUpdateSchema>;
+
+// Saved properties of a generated fridge segment; these rows do not add wires.
+export const wireSegmentPropertiesRowSchema = z.object({
+  id: uuid,
+  fridge_id: uuid,
+  sheet_id: uuid,
+  line_id: uuid,
+  from_component_id: uuid,
+  to_component_id: uuid,
+  wire_properties: wirePropertiesSchema.default(DEFAULT_WIRE_PROPERTIES),
+  created_at: timestamp,
+});
+export type WireSegmentProperties = z.infer<
+  typeof wireSegmentPropertiesRowSchema
+>;
+export const wireSegmentPropertiesCreateSchema = wireSegmentPropertiesRowSchema
+  .omit({ id: true, created_at: true })
+  .extend({ wire_properties: wirePropertiesSchema.optional() });
+export type WireSegmentPropertiesCreateInput = z.infer<
+  typeof wireSegmentPropertiesCreateSchema
+>;
+export const wireSegmentPropertiesUpdateSchema = connectionUpdateSchema;
+export type WireSegmentPropertiesUpdateInput = ConnectionUpdateInput;
 
 // annotations --------------------------------------------------------------
 // Free-floating text on a sheet: a positioned note, not attached to any

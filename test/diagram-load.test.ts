@@ -60,6 +60,7 @@ describe("loadDiagramState", () => {
       customDefs: [],
       connections: [],
       annotations: [],
+      wireSegmentProperties: [],
     });
   });
 

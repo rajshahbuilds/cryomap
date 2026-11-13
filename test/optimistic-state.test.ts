@@ -13,6 +13,7 @@ const state = (): DiagramState => ({
   lines: [],
   customDefs: [],
   annotations: [],
+  wireSegmentProperties: [],
   components: [
     makeComponent({ id: "c1", x_abs: 10, y_abs: 20 }),
     makeComponent({ id: "c2", x_abs: 30, y_abs: 40 }),
