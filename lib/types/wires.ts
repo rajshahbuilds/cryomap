@@ -38,6 +38,7 @@ export const wirePropertiesSchema = z
       .max(2147483647)
       .nullable()
       .default(null),
+    datasheet_url: z.url().nullable().default(null),
     notes: z.string().nullable().default(null),
   })
   .strict();

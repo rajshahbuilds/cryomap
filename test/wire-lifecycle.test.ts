@@ -48,6 +48,7 @@ function fixture() {
   const a = makeComponent({ line_id: line.id, stage_id: stages[0].id }),
     b = makeComponent({ line_id: line.id, stage_id: stages[2].id });
   const props = wirePropertiesSchema.parse({
+    datasheet_url: "https://example.com/wire.pdf",
     construction: "twisted_pair",
     material: "copper",
     label: "A",

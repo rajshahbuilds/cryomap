@@ -90,7 +90,8 @@ measurements save when you leave their field. Optional values can be cleared.
 Labels are hidden by default and appear only after enabling **Show label on
 diagram**. Material is independent of construction; coaxial and triaxial wires
 also expose their shield materials. Gauge accepts AWG (including `2/0`, `3/0`,
-and `4/0`) or a diameter in mm or µm.
+and `4/0`) or a diameter in mm or µm. Each wire also has an optional
+**Datasheet URL**, with the same URL validation as component datasheets.
 
 Each automatic segment keeps its properties for that pair of components on that
 line. Inserting a component creates new, unspecified segments. Removing it

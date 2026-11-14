@@ -8,10 +8,10 @@ create or replace function pg_temp.login(uid uuid) returns void language plpgsql
 end $$;
 
 do $$ declare item jsonb; begin
-  foreach item in array array['{}'::jsonb,'{"construction":"twisted_pair","label":"sensor","material":"copper","show_label":false,"length":{"value":1.2,"unit":"m"},"size":{"value":36,"unit":"awg"},"conductor_count":2}', '{"size":{"value":-3,"unit":"awg"}}', '{"size":{"value":0,"unit":"awg"}}', '{"length":null,"size":null,"conductor_count":null}'] loop
+  foreach item in array array['{}'::jsonb,'{"datasheet_url":"https://example.com/wire.pdf"}','{"datasheet_url":null}','{"construction":"twisted_pair","label":"sensor","material":"copper","show_label":false,"length":{"value":1.2,"unit":"m"},"size":{"value":36,"unit":"awg"},"conductor_count":2}', '{"size":{"value":-3,"unit":"awg"}}', '{"size":{"value":0,"unit":"awg"}}', '{"length":null,"size":null,"conductor_count":null}'] loop
     if not public.valid_wire_properties(item) then raise exception 'FAIL rejected valid properties %',item; end if;
   end loop;
-  foreach item in array array['null'::jsonb,'[]','{"construction":null}','{"construction":"twisted_quad"}','{"show_label":null}','{"show_label":"yes"}','{"material":1}','{"unknown":true}','{"conductor_count":0}','{"conductor_count":1.5}','{"conductor_count":2147483648}','{"length":{"value":0,"unit":"m"}}','{"length":{"value":2,"unit":"ft"}}','{"length":{"value":2}}','{"length":{"value":2,"unit":"m","extra":1}}','{"size":{"value":-4,"unit":"awg"}}','{"size":{"value":1.5,"unit":"awg"}}','{"size":{"value":0,"unit":"mm"}}'] loop
+  foreach item in array array['null'::jsonb,'[]','{"construction":null}','{"construction":"twisted_quad"}','{"show_label":null}','{"show_label":"yes"}','{"material":1}','{"datasheet_url":123}','{"unknown":true}','{"conductor_count":0}','{"conductor_count":1.5}','{"conductor_count":2147483648}','{"length":{"value":0,"unit":"m"}}','{"length":{"value":2,"unit":"ft"}}','{"length":{"value":2}}','{"length":{"value":2,"unit":"m","extra":1}}','{"size":{"value":-4,"unit":"awg"}}','{"size":{"value":1.5,"unit":"awg"}}','{"size":{"value":0,"unit":"mm"}}'] loop
     if public.valid_wire_properties(item) then raise exception 'FAIL accepted invalid properties %',item; end if;
     begin
       update public.connections set wire_properties=item where id='eeeeeeee-0000-4000-8000-00000000003c';
@@ -24,9 +24,9 @@ end $$;
 do $$ declare segment uuid; n int; begin
   perform pg_temp.login('eeeeeeee-0000-4000-8000-000000000002');
   insert into public.wire_segment_properties(fridge_id,sheet_id,line_id,from_component_id,to_component_id,wire_properties) values ('eeeeeeee-0000-4000-8000-000000000014','eeeeeeee-0000-4000-8000-00000000001e','eeeeeeee-0000-4000-8000-000000000028','eeeeeeee-0000-4000-8000-000000000032','eeeeeeee-0000-4000-8000-000000000033','{"construction":"twisted_pair","label":"thermometer"}') returning id into segment;
-  update public.wire_segment_properties set wire_properties='{"construction":"coaxial"}' where id=segment;
-  if not exists(select 1 from public.wire_segment_properties where id=segment and wire_properties->>'construction'='coaxial') then raise exception 'FAIL editor update'; end if;
-  update public.connections set wire_properties='{"label":"RF","construction":"coaxial"}' where id='eeeeeeee-0000-4000-8000-00000000003c';
+  update public.wire_segment_properties set wire_properties='{"construction":"coaxial","datasheet_url":"https://example.com/wire.pdf"}' where id=segment;
+  if not exists(select 1 from public.wire_segment_properties where id=segment and wire_properties->>'construction'='coaxial' and wire_properties->>'datasheet_url'='https://example.com/wire.pdf') then raise exception 'FAIL editor update'; end if;
+  update public.connections set wire_properties='{"label":"RF","construction":"coaxial","datasheet_url":"https://example.com/coax.pdf"}' where id='eeeeeeee-0000-4000-8000-00000000003c';
   delete from public.wire_segment_properties where id=segment;
   get diagnostics n=row_count;
   if n<>1 then raise exception 'FAIL editor delete'; end if;

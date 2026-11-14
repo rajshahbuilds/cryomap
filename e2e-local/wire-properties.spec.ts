@@ -231,6 +231,14 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     await expect(page.getByLabel("Conductor count")).toHaveValue("");
     await page.getByRole("button", { name: "Redo", exact: true }).click();
     await expect(page.getByLabel("Conductor count")).toHaveValue("2");
+    const datasheet = "https://example.com/sensor-wire.pdf";
+    const coaxDatasheet = "https://example.com/coax.pdf";
+    await page.getByLabel("Datasheet URL").fill(datasheet);
+    await page.getByLabel("Datasheet URL").press("Tab");
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.getByLabel("Datasheet URL")).toHaveValue("");
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await expect(page.getByLabel("Datasheet URL")).toHaveValue(datasheet);
     const properties = async () =>
       check(
         await db
@@ -246,6 +254,7 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
       length: { value: 1.25, unit: "m" },
       size: { value: 36, unit: "awg" },
       conductor_count: 2,
+      datasheet_url: datasheet,
     });
     await page.locator(`[data-component-id="${a}"]`).click();
     await page.keyboard.press("Delete");
@@ -262,6 +271,7 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     await expect(page.getByLabel("Length", { exact: true })).toHaveValue(
       "1.25",
     );
+    await expect(page.getByLabel("Datasheet URL")).toHaveValue(datasheet);
     await page.screenshot({ path: testInfo.outputPath("wire-properties.png") });
     await page.reload();
     await page
@@ -270,6 +280,7 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     await expect(
       page.getByLabel("Gauge / diameter", { exact: true }),
     ).toHaveValue("36");
+    await expect(page.getByLabel("Datasheet URL")).toHaveValue(datasheet);
     await page
       .getByRole("button", { name: "Bench wiring", exact: true })
       .click();
@@ -280,6 +291,8 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
       .getByLabel("Construction", { exact: true })
       .selectOption("coaxial");
     await expect(page.getByLabel("Shield material")).toBeVisible();
+    await page.getByLabel("Datasheet URL").fill(coaxDatasheet);
+    await page.getByLabel("Datasheet URL").press("Tab");
     await page.getByLabel("Label", { exact: true }).fill("RF feed");
     await page.getByLabel("Label", { exact: true }).press("Tab");
     await expect
@@ -297,6 +310,7 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
         construction: "coaxial",
         label: "RF feed",
         show_label: false,
+        datasheet_url: coaxDatasheet,
       });
     await expect(
       page.getByRole("button", { name: "Check In", exact: true }),
@@ -316,11 +330,21 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     )!;
     expect(version.snapshot).toMatchObject({
       connections: [
-        { wire_properties: { construction: "coaxial", label: "RF feed" } },
+        {
+          wire_properties: {
+            construction: "coaxial",
+            label: "RF feed",
+            datasheet_url: coaxDatasheet,
+          },
+        },
       ],
       wire_segment_properties: [
         {
-          wire_properties: { construction: "twisted_pair", label: "Sensor A" },
+          wire_properties: {
+            construction: "twisted_pair",
+            label: "Sensor A",
+            datasheet_url: datasheet,
+          },
         },
       ],
     });
@@ -330,7 +354,10 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     const file = await downloaded;
     const exported = JSON.parse(await readFile((await file.path())!, "utf8"));
     expect(exported).toMatchObject({
-      wire_segment_properties: [{ wire_properties: { label: "Sensor A" } }],
+      connections: [{ wire_properties: { datasheet_url: coaxDatasheet } }],
+      wire_segment_properties: [
+        { wire_properties: { label: "Sensor A", datasheet_url: datasheet } },
+      ],
     });
     for (const [label, header] of [
       ["PNG image", "89504e470d0a1a0a"],

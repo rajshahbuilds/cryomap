@@ -27,6 +27,41 @@ describe("wire properties panel", () => {
     unmount();
     expect(save).toHaveBeenCalledOnce();
   });
+  it("validates and trims datasheet URLs before saving", async () => {
+    const save = vi.fn();
+    const { user } = renderWithProviders(
+      <WirePropertiesPanel {...defaults} onSave={save} />,
+    );
+    const input = screen.getByLabelText("Datasheet URL");
+    await user.type(input, "not a URL");
+    await user.tab();
+    expect(save).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter a valid datasheet URL.",
+    );
+    await user.clear(input);
+    await user.type(input, "  https://example.com/wire.pdf  ");
+    await user.tab();
+    expect(save).toHaveBeenLastCalledWith({
+      datasheet_url: "https://example.com/wire.pdf",
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+  it("clears a saved datasheet URL", async () => {
+    const save = vi.fn();
+    const { user } = renderWithProviders(
+      <WirePropertiesPanel
+        {...defaults}
+        properties={wirePropertiesSchema.parse({
+          datasheet_url: "https://example.com/wire.pdf",
+        })}
+        onSave={save}
+      />,
+    );
+    await user.clear(screen.getByLabelText("Datasheet URL"));
+    await user.tab();
+    expect(save).toHaveBeenLastCalledWith({ datasheet_url: null });
+  });
   it("changes construction and visibility as independent patches", async () => {
     const save = vi.fn();
     const { user } = renderWithProviders(
@@ -122,6 +157,7 @@ describe("wire properties panel", () => {
       screen.getByLabelText("Construction", { exact: true }),
     ).toBeDisabled();
     expect(screen.getByLabelText("Length", { exact: true })).toBeDisabled();
+    expect(screen.getByLabelText("Datasheet URL")).toBeDisabled();
     expect(screen.getByLabelText("Show label on diagram")).toBeDisabled();
   });
 });

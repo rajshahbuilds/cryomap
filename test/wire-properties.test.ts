@@ -35,6 +35,7 @@ const properties = wirePropertiesSchema.parse({
   construction: "twisted_pair",
   label: "Sensor A",
   material: "phosphor bronze",
+  datasheet_url: "https://example.com/sensor-wire.pdf",
   length: { value: 1.2, unit: "m" },
   size: { value: 36, unit: "awg" },
   conductor_count: 2,
@@ -66,6 +67,7 @@ describe("wire properties", () => {
   it("defaults old wires to unspecified with labels hidden", () => {
     expect(wirePropertiesSchema.parse({})).toEqual(DEFAULT_WIRE_PROPERTIES);
     expect(DEFAULT_WIRE_PROPERTIES.show_label).toBe(false);
+    expect(DEFAULT_WIRE_PROPERTIES.datasheet_url).toBeNull();
     const legacy = JSON.parse(JSON.stringify(serializeSnapshot(state())));
     delete legacy.wire_segment_properties;
     delete legacy.connections[0].wire_properties;
@@ -92,6 +94,8 @@ describe("wire properties", () => {
     { conductor_count: 2147483648 },
     { length: { value: Infinity, unit: "m" } },
     { material: 4 },
+    { datasheet_url: "not a URL" },
+    { datasheet_url: 123 },
     { typo: true },
     { length: { value: 2, unit: "m", other: true } },
   ])("rejects malformed attributes: %j", (input) => {
@@ -106,6 +110,17 @@ describe("wire properties", () => {
       ).toBe(value);
     },
   );
+  it("defaults existing wire payloads without a datasheet to null", () => {
+    const legacy = JSON.parse(JSON.stringify(serializeSnapshot(state())));
+    delete legacy.connections[0].wire_properties.datasheet_url;
+    delete legacy.wire_segment_properties[0].wire_properties.datasheet_url;
+    const restored = snapshotToState(parseSnapshot(legacy));
+    expect(restored.connections[0].wire_properties.datasheet_url).toBeNull();
+    expect(
+      restored.wireSegmentProperties[0].wire_properties.datasheet_url,
+    ).toBeNull();
+    expect(restored.connections[0].wire_properties.label).toBe("Sensor A");
+  });
   it("round-trips both wire kinds through JSON snapshots", () => {
     const restored = snapshotToState(
       parseSnapshot(JSON.parse(JSON.stringify(serializeSnapshot(state())))),

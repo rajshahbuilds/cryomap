@@ -44,7 +44,9 @@ export function WirePropertiesPanel({
             ? "Enter a positive diameter or a whole AWG number. You can also use 2/0, 3/0, or 4/0."
             : "conductor_count" in patch
               ? "Enter a positive whole number of conductors."
-              : "Check the wire properties.",
+              : "datasheet_url" in patch
+                ? "Enter a valid datasheet URL."
+                : "Check the wire properties.",
       );
       return;
     }
@@ -64,6 +66,7 @@ export function WirePropertiesPanel({
       | "material"
       | "inner_shield_material"
       | "outer_shield_material"
+      | "datasheet_url"
       | "notes",
     title: string,
     multiline = false,
@@ -213,6 +216,7 @@ export function WirePropertiesPanel({
             }
           />
         </label>
+        {text("datasheet_url", "Datasheet URL")}
         {text("notes", "Notes", true)}
         {error ? (
           <p role="alert" className="text-xs text-status-broken">
