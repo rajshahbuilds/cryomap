@@ -10,6 +10,7 @@
  */
 export * from "./enums";
 export * from "./rows";
+export * from "./wires";
 export * from "./snapshot";
 
 export type {

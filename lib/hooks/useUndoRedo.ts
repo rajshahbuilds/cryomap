@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   canRedo,
@@ -25,6 +25,7 @@ export interface UseUndoRedo {
   canUndo: boolean;
   canRedo: boolean;
   isDirty: boolean;
+  pending: boolean;
 }
 
 /**
@@ -41,6 +42,11 @@ export function useUndoRedo(
   onStateUpdate?: (update: DiagramStateUpdate) => void,
 ): UseUndoRedo {
   const [stack, setStack] = useState<UndoStack>(emptyStack());
+  const stackRef = useRef(stack);
+  const queue = useRef(Promise.resolve());
+  const generation = useRef(0);
+  const pendingCount = useRef(0);
+  const [pending, setPending] = useState(false);
 
   const applyOptimistic = useCallback(
     (update: DiagramStateUpdate | undefined) => {
@@ -50,71 +56,92 @@ export function useUndoRedo(
     },
     [onStateUpdate],
   );
-
-  const apply = useCallback(
-    (command: UndoCommand) => {
-      const optimistic = applyOptimistic(command.optimisticRedo);
-      void (async () => {
-        try {
-          await command.redo(createSupabaseBrowserClient());
-          setStack((s) => pushCommand(s, command));
-        } catch (error) {
-          applyOptimistic(command.optimisticUndo);
+  const enqueue = useCallback(
+    (operation: (currentGeneration: number) => Promise<void>) => {
+      const currentGeneration = generation.current;
+      pendingCount.current++;
+      setPending(true);
+      queue.current = queue.current
+        .then(async () => {
+          if (generation.current === currentGeneration)
+            await operation(currentGeneration);
+        })
+        .catch((error) => {
           onError?.(error);
           onApplied();
-          return;
-        }
-        if (!optimistic) onApplied();
-      })();
+        })
+        .finally(() => {
+          pendingCount.current--;
+          setPending(pendingCount.current > 0);
+        });
     },
-    [applyOptimistic, onApplied, onError],
+    [onApplied, onError],
+  );
+  const record = useCallback((next: UndoStack) => {
+    stackRef.current = next;
+    setStack(next);
+  }, []);
+
+  const apply = useCallback(
+    (command: UndoCommand) =>
+      enqueue(async (currentGeneration) => {
+        const optimistic = applyOptimistic(command.optimisticRedo);
+        try {
+          await command.redo(createSupabaseBrowserClient());
+        } catch (error) {
+          applyOptimistic(command.optimisticUndo);
+          throw error;
+        }
+        if (generation.current === currentGeneration)
+          record(pushCommand(stackRef.current, command));
+        if (!optimistic || command.reconcileAfter) onApplied();
+      }),
+    [enqueue, applyOptimistic, onApplied, record],
   );
 
-  const undo = useCallback(() => {
-    const popped = popUndo(stack);
-    if (!popped) return;
-    setStack(popped.next);
-    const optimistic = applyOptimistic(popped.command.optimisticUndo);
-    void (async () => {
-      try {
-        await popped.command.undo(createSupabaseBrowserClient());
-      } catch (error) {
-        applyOptimistic(popped.command.optimisticRedo);
-        onError?.(error);
-        onApplied();
-        return;
-      }
-      if (!optimistic) onApplied();
-    })();
-  }, [applyOptimistic, onApplied, onError, stack]);
-
-  const redo = useCallback(() => {
-    const popped = popRedo(stack);
-    if (!popped) return;
-    setStack(popped.next);
-    const optimistic = applyOptimistic(popped.command.optimisticRedo);
-    void (async () => {
-      try {
-        await popped.command.redo(createSupabaseBrowserClient());
-      } catch (error) {
-        applyOptimistic(popped.command.optimisticUndo);
-        onError?.(error);
-        onApplied();
-        return;
-      }
-      if (!optimistic) onApplied();
-    })();
-  }, [applyOptimistic, onApplied, onError, stack]);
-
-  const reset = useCallback(() => setStack(emptyStack()), []);
-
+  const navigate = useCallback(
+    (direction: "undo" | "redo") =>
+      enqueue(async (currentGeneration) => {
+        const popped =
+          direction === "undo"
+            ? popUndo(stackRef.current)
+            : popRedo(stackRef.current);
+        if (!popped) return;
+        const command = popped.command;
+        const optimistic = applyOptimistic(
+          direction === "undo"
+            ? command.optimisticUndo
+            : command.optimisticRedo,
+        );
+        try {
+          await command[direction](createSupabaseBrowserClient());
+        } catch (error) {
+          applyOptimistic(
+            direction === "undo"
+              ? command.optimisticRedo
+              : command.optimisticUndo,
+          );
+          throw error;
+        }
+        if (generation.current === currentGeneration) record(popped.next);
+        if (!optimistic || command.reconcileAfter) onApplied();
+      }),
+    [enqueue, applyOptimistic, onApplied, record],
+  );
+  const undo = useCallback(() => navigate("undo"), [navigate]);
+  const redo = useCallback(() => navigate("redo"), [navigate]);
+  const reset = useCallback(() => {
+    generation.current++;
+    record(emptyStack());
+  }, [record]);
   return {
     apply,
     undo,
     redo,
     reset,
-    canUndo: canUndo(stack),
-    canRedo: canRedo(stack),
-    isDirty: isDirty(stack),
+    canUndo: !pending && canUndo(stack),
+    canRedo: !pending && canRedo(stack),
+    isDirty: isDirty(stack) || pending,
+    pending,
   };
 }

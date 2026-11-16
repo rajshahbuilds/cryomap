@@ -14,13 +14,17 @@ pnpm test:rls
 `run.sh` stands up a **disposable local Postgres** (no Docker, no Supabase CLI),
 applies `_bootstrap.sql` (Supabase-compatible shims: the `auth` schema, the
 `anon`/`authenticated`/`service_role` roles, `auth.uid()`), then every migration
-in `../migrations` in order, then `_grants.sql`, then `tenant_isolation.sql`.
+in `../migrations` in order, then `_grants.sql`, `tenant_isolation.sql`, and
+`wire_properties.sql`. A second database replays the pre-wire migrations,
+seeds existing connections and history, then applies the wire migration and
+verifies the upgrade.
 The cluster is deleted on exit. Requires a local Postgres on PATH
 (`brew install postgresql@16`); it also runs in CI, where the runner's
 PostgreSQL binaries are discovered automatically.
 
 Any failed assertion aborts with a non-zero exit (`psql -v ON_ERROR_STOP=1`); the
-closing `ALL TENANT-ISOLATION CHECKS PASSED` notice is the success marker.
+closing `tenant isolation, wire properties, and upgrade tests passed` message
+is the success marker.
 
 ## What's covered
 
@@ -47,3 +51,10 @@ a JWT claims blob, exactly as PostgREST sets them):
 
 Exports (PNG/PDF) are generated client-side from already-read diagram data, so
 they inherit the same read policy and need no separate server surface.
+
+`wire_properties.sql` also verifies attribute validation, editor/viewer/outsider
+permissions, canonical endpoint ordering and uniqueness, consistent fridge /
+sheet / line references (including administrators of both labs), layout changes,
+component reassignment, and endpoint deletion. The upgrade rehearsal verifies
+that existing connections receive hidden, unspecified defaults, historical
+snapshots remain unchanged, and clients can still omit wire properties.

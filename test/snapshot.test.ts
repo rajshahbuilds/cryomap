@@ -21,6 +21,7 @@ function sampleState(): DiagramState {
     customDefs: [makeCustomComponentDef()],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
   };
 }
 
@@ -51,6 +52,7 @@ describe("snapshot serializer", () => {
       customDefs: [],
       connections: [],
       annotations: [],
+      wireSegmentProperties: [],
     });
     expect(() => new Date(snapshot.snapshotted_at).toISOString()).not.toThrow();
   });

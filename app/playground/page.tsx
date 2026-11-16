@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Snowflake } from "lucide-react";
+import { WireAppearancePreview } from "@/components/diagram/WireAppearancePreview";
 import { DemoDiagramEditor } from "@/components/diagram/DemoDiagramEditor";
 
 export const metadata: Metadata = {
@@ -10,7 +11,14 @@ export const metadata: Metadata = {
   alternates: { canonical: "/playground" },
 };
 
-export default function PlaygroundPage() {
+export default async function PlaygroundPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string }>;
+}) {
+  const wirePreview =
+    process.env.NODE_ENV === "development" &&
+    (await searchParams).preview === "wires";
   return (
     <div className="flex h-screen min-h-[38rem] flex-col bg-background">
       <header className="flex min-h-14 items-center gap-4 border-b border-border bg-surface px-4">
@@ -27,7 +35,7 @@ export default function PlaygroundPage() {
       </header>
 
       <main className="relative min-h-0 flex-1">
-        <DemoDiagramEditor />
+        {wirePreview ? <WireAppearancePreview /> : <DemoDiagramEditor />}
       </main>
     </div>
   );

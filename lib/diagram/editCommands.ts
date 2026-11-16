@@ -1,3 +1,4 @@
+import { preserveWiresCommand } from "./wireLifecycle";
 import type {
   Annotation,
   AnnotationCreateInput,
@@ -189,7 +190,9 @@ export function addLineCommand(
   let id: string | null = null;
   return {
     redo: async (db) => {
-      id = (await addLine(db, fridgeId, sheetId, existing, values)).id;
+      id = (
+        await addLine(db, fridgeId, sheetId, existing, values, id ?? undefined)
+      ).id;
     },
     undo: async (db) => {
       if (id) await linesRepo(db).remove(id);
@@ -231,15 +234,18 @@ export function addStageCommand(
     redo: async (db) => {
       await setOrders(db, plan.shifted);
       id = (
-        await stagesRepo(db).create({
-          fridge_id: fridgeId,
-          sheet_id: sheetId,
-          name: values.name,
-          nominal_temp: values.nominalTemp,
-          color: values.color,
-          sort_order: plan.newSortOrder,
-          height_px: DEFAULT_STAGE_HEIGHT,
-        })
+        await stagesRepo(db).create(
+          {
+            fridge_id: fridgeId,
+            sheet_id: sheetId,
+            name: values.name,
+            nominal_temp: values.nominalTemp,
+            color: values.color,
+            sort_order: plan.newSortOrder,
+            height_px: DEFAULT_STAGE_HEIGHT,
+          },
+          id ?? undefined,
+        )
       ).id;
     },
     undo: async (db) => {
@@ -307,67 +313,80 @@ export function customDefPatchCommand(
   };
 }
 
-/** Delete a line + its components; undo re-creates both, remapping FKs. */
+/** Delete a line + its components; undo restores both with their original ids. */
 export function deleteLineCommand(
   line: Line,
   components: Component[],
 ): UndoCommand {
   let currentId = line.id;
-  return {
-    redo: async (db) => {
-      await componentsRepo(db).removeByLine(currentId);
-      await linesRepo(db).remove(currentId);
+  return preserveWiresCommand(
+    {
+      redo: async (db) => {
+        await componentsRepo(db).removeByLine(currentId);
+        await linesRepo(db).remove(currentId);
+      },
+      undo: async (db) => {
+        const recreated = await linesRepo(db).create(
+          {
+            fridge_id: line.fridge_id ?? "",
+            sheet_id: line.sheet_id,
+            name: line.name,
+            line_type: line.line_type,
+            direction: line.direction,
+            entry_wire_properties: line.entry_wire_properties,
+            status: line.status,
+            notes: line.notes,
+            sort_order: line.sort_order,
+            width_px: line.width_px,
+            show_label: line.show_label,
+          },
+          line.id,
+        );
+        currentId = recreated.id;
+        for (const component of components) {
+          await recreateComponent(db, component, { line_id: recreated.id });
+        }
+      },
     },
-    undo: async (db) => {
-      const recreated = await linesRepo(db).create({
-        fridge_id: line.fridge_id ?? "",
-        sheet_id: line.sheet_id,
-        name: line.name,
-        line_type: line.line_type,
-        direction: line.direction,
-        status: line.status,
-        notes: line.notes,
-        sort_order: line.sort_order,
-        width_px: line.width_px,
-        show_label: line.show_label,
-      });
-      currentId = recreated.id;
-      for (const component of components) {
-        await recreateComponent(db, component, { line_id: recreated.id });
-      }
-    },
-  };
+    line.fridge_id ?? "",
+  );
 }
 
-/** Delete a stage + its components; undo re-creates both, remapping FKs. */
+/** Delete a stage + its components; undo restores both with their original ids. */
 export function deleteStageCommand(
   stage: Stage,
   components: Component[],
 ): UndoCommand {
   let currentId = stage.id;
-  return {
-    redo: async (db) => {
-      await componentsRepo(db).removeByStage(currentId);
-      await stagesRepo(db).remove(currentId);
+  return preserveWiresCommand(
+    {
+      redo: async (db) => {
+        await componentsRepo(db).removeByStage(currentId);
+        await stagesRepo(db).remove(currentId);
+      },
+      undo: async (db) => {
+        const recreated = await stagesRepo(db).create(
+          {
+            fridge_id: stage.fridge_id ?? "",
+            sheet_id: stage.sheet_id,
+            name: stage.name,
+            nominal_temp: stage.nominal_temp,
+            color: stage.color,
+            sort_order: stage.sort_order,
+            height_px: stage.height_px,
+            hidden: stage.hidden,
+            locked: stage.locked,
+          },
+          stage.id,
+        );
+        currentId = recreated.id;
+        for (const component of components) {
+          await recreateComponent(db, component, { stage_id: recreated.id });
+        }
+      },
     },
-    undo: async (db) => {
-      const recreated = await stagesRepo(db).create({
-        fridge_id: stage.fridge_id ?? "",
-        sheet_id: stage.sheet_id,
-        name: stage.name,
-        nominal_temp: stage.nominal_temp,
-        color: stage.color,
-        sort_order: stage.sort_order,
-        height_px: stage.height_px,
-        hidden: stage.hidden,
-        locked: stage.locked,
-      });
-      currentId = recreated.id;
-      for (const component of components) {
-        await recreateComponent(db, component, { stage_id: recreated.id });
-      }
-    },
-  };
+    stage.fridge_id ?? "",
+  );
 }
 
 export function sheetPatchCommand(
@@ -422,7 +441,7 @@ export function addSheetCommand(
   let id: string | null = null;
   return {
     redo: async (db) => {
-      id = (await sheetsRepo(db).create(input)).id;
+      id = (await sheetsRepo(db).create(input, id ?? undefined)).id;
     },
     undo: async (db) => {
       if (id) await sheetsRepo(db).remove(id);
@@ -439,8 +458,8 @@ export interface SheetContents {
 }
 
 /**
- * Delete a sheet with everything drawn on it; undo re-creates all five layers,
- * remapping foreign keys onto the fresh rows. A fridge sheet takes its own
+ * Delete a sheet with everything drawn on it; undo restores all layers
+ * with their original ids. A fridge sheet takes its own
  * stages and lines with it (they are sheet-scoped); a room-temp
  * sheet simply has none.
  *
@@ -456,94 +475,108 @@ export function deleteSheetCommand(
 ): UndoCommand {
   const { stages, lines, components, connections } = contents;
   let currentId = sheet.id;
-  return {
-    redo: async (db) => {
-      await connectionsRepo(db).removeBySheet(currentId);
-      await componentsRepo(db).removeBySheet(currentId);
-      await linesRepo(db).removeBySheet(currentId);
-      await stagesRepo(db).removeBySheet(currentId);
-      await sheetsRepo(db).remove(currentId);
-    },
-    undo: async (db) => {
-      const recreated = await sheetsRepo(db).create({
-        fridge_id: sheet.fridge_id,
-        kind: sheet.kind,
-        name: sheet.name,
-        sort_order: sheet.sort_order,
-        notes: sheet.notes,
-      });
-      currentId = recreated.id;
+  return preserveWiresCommand(
+    {
+      redo: async (db) => {
+        await connectionsRepo(db).removeBySheet(currentId);
+        await componentsRepo(db).removeBySheet(currentId);
+        await linesRepo(db).removeBySheet(currentId);
+        await stagesRepo(db).removeBySheet(currentId);
+        await sheetsRepo(db).remove(currentId);
+      },
+      undo: async (db) => {
+        const recreated = await sheetsRepo(db).create(
+          {
+            fridge_id: sheet.fridge_id,
+            kind: sheet.kind,
+            name: sheet.name,
+            sort_order: sheet.sort_order,
+            notes: sheet.notes,
+          },
+          sheet.id,
+        );
+        currentId = recreated.id;
 
-      // Each layer comes back with fresh ids, so everything pointing at it has
-      // to be re-pointed. A row that lost a referent is dropped rather than
-      // resurrected dangling.
-      const stageIdMap = new Map<string, string>();
-      for (const stage of stages) {
-        const fresh = await stagesRepo(db).create({
-          fridge_id: stage.fridge_id ?? sheet.fridge_id,
-          sheet_id: recreated.id,
-          name: stage.name,
-          nominal_temp: stage.nominal_temp,
-          color: stage.color,
-          sort_order: stage.sort_order,
-          height_px: stage.height_px,
-          hidden: stage.hidden,
-          locked: stage.locked,
-        });
-        stageIdMap.set(stage.id, fresh.id);
-      }
+        // Restore each identity so earlier commands and wire references still
+        // address the same entities. Drop references to missing parents.
+        const stageIdMap = new Map<string, string>();
+        for (const stage of stages) {
+          const fresh = await stagesRepo(db).create(
+            {
+              fridge_id: stage.fridge_id ?? sheet.fridge_id,
+              sheet_id: recreated.id,
+              name: stage.name,
+              nominal_temp: stage.nominal_temp,
+              color: stage.color,
+              sort_order: stage.sort_order,
+              height_px: stage.height_px,
+              hidden: stage.hidden,
+              locked: stage.locked,
+            },
+            stage.id,
+          );
+          stageIdMap.set(stage.id, fresh.id);
+        }
 
-      const lineIdMap = new Map<string, string>();
-      for (const line of lines) {
-        const fresh = await linesRepo(db).create({
-          fridge_id: line.fridge_id ?? sheet.fridge_id,
-          sheet_id: recreated.id,
-          name: line.name,
-          line_type: line.line_type,
-          direction: line.direction,
-          status: line.status,
-          notes: line.notes,
-          sort_order: line.sort_order,
-          width_px: line.width_px,
-          show_label: line.show_label,
-        });
-        lineIdMap.set(line.id, fresh.id);
-      }
+        const lineIdMap = new Map<string, string>();
+        for (const line of lines) {
+          const fresh = await linesRepo(db).create(
+            {
+              fridge_id: line.fridge_id ?? sheet.fridge_id,
+              sheet_id: recreated.id,
+              name: line.name,
+              line_type: line.line_type,
+              direction: line.direction,
+              entry_wire_properties: line.entry_wire_properties,
+              status: line.status,
+              notes: line.notes,
+              sort_order: line.sort_order,
+              width_px: line.width_px,
+              show_label: line.show_label,
+            },
+            line.id,
+          );
+          lineIdMap.set(line.id, fresh.id);
+        }
 
-      const componentIdMap = new Map<string, string>();
-      for (const component of components) {
-        const fresh = await recreateComponent(db, component, {
-          sheet_id: recreated.id,
-          stage_id: component.stage_id
-            ? (stageIdMap.get(component.stage_id) ?? null)
-            : null,
-          line_id: component.line_id
-            ? (lineIdMap.get(component.line_id) ?? null)
-            : null,
-        });
-        componentIdMap.set(component.id, fresh.id);
-      }
-
-      const remapped = connections
-        .map((conn) => {
-          const from = componentIdMap.get(conn.from_component_id);
-          const to = componentIdMap.get(conn.to_component_id);
-          if (!from || !to) return null;
-          return {
-            fridge_id: conn.fridge_id ?? sheet.fridge_id,
+        const componentIdMap = new Map<string, string>();
+        for (const component of components) {
+          const fresh = await recreateComponent(db, component, {
             sheet_id: recreated.id,
-            from_component_id: from,
-            from_port_side: conn.from_port_side,
-            from_port_index: conn.from_port_index,
-            to_component_id: to,
-            to_port_side: conn.to_port_side,
-            to_port_index: conn.to_port_index,
-          };
-        })
-        .filter((c): c is NonNullable<typeof c> => c !== null);
-      if (remapped.length) await connectionsRepo(db).createMany(remapped);
+            stage_id: component.stage_id
+              ? (stageIdMap.get(component.stage_id) ?? null)
+              : null,
+            line_id: component.line_id
+              ? (lineIdMap.get(component.line_id) ?? null)
+              : null,
+          });
+          componentIdMap.set(component.id, fresh.id);
+        }
+
+        const remapped = connections
+          .map((conn) => {
+            const from = componentIdMap.get(conn.from_component_id);
+            const to = componentIdMap.get(conn.to_component_id);
+            if (!from || !to) return null;
+            return {
+              id: conn.id,
+              fridge_id: conn.fridge_id ?? sheet.fridge_id,
+              sheet_id: recreated.id,
+              from_component_id: from,
+              from_port_side: conn.from_port_side,
+              from_port_index: conn.from_port_index,
+              to_component_id: to,
+              to_port_side: conn.to_port_side,
+              to_port_index: conn.to_port_index,
+              wire_properties: conn.wire_properties,
+            };
+          })
+          .filter((c): c is NonNullable<typeof c> => c !== null);
+        if (remapped.length) await connectionsRepo(db).createMany(remapped);
+      },
     },
-  };
+    sheet.fridge_id ?? "",
+  );
 }
 
 /** Create an explicit port-to-port connection; undo removes the created row. */
@@ -553,7 +586,7 @@ export function addConnectionCommand(
   let id: string | null = null;
   return {
     redo: async (db) => {
-      id = (await connectionsRepo(db).create(input)).id;
+      id = (await connectionsRepo(db).create(input, id ?? undefined)).id;
     },
     undo: async (db) => {
       if (id) await connectionsRepo(db).remove(id);
@@ -561,10 +594,12 @@ export function addConnectionCommand(
   };
 }
 
-/** Delete a connection; undo re-creates it (with a fresh id, same endpoints). */
+/** Delete a connection; undo restores its identity, endpoints, and properties. */
 export function deleteConnectionCommand(connection: Connection): UndoCommand {
   const input: ConnectionCreateInput = {
     fridge_id: connection.fridge_id ?? "",
+    sheet_id: connection.sheet_id,
+    wire_properties: connection.wire_properties,
     from_component_id: connection.from_component_id,
     from_port_side: connection.from_port_side,
     from_port_index: connection.from_port_index,
@@ -579,7 +614,7 @@ export function deleteConnectionCommand(connection: Connection): UndoCommand {
       await connectionsRepo(db).remove(currentId);
     },
     undo: async (db) => {
-      currentId = (await connectionsRepo(db).create(input)).id;
+      currentId = (await connectionsRepo(db).create(input, connection.id)).id;
     },
   };
 }

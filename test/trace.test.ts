@@ -61,6 +61,7 @@ function view(components: Component[], connections: Connection[]) {
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   };
   return assembleDiagram(state, RT);
 }
@@ -141,6 +142,7 @@ describe("chainsByLine", () => {
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   });
 
   it("groups two chains that terminate at the same line", () => {
@@ -178,6 +180,7 @@ describe("tracedChainsForLine", () => {
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   });
 
   it("returns only the chains linked to the given line", () => {
@@ -221,6 +224,7 @@ describe("lineComponents", () => {
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
   });
 
   it("orders line components warm → cold by stage, then by y within a band", () => {
@@ -257,6 +261,21 @@ describe("lineComponents", () => {
       }),
     ]);
     expect(lineComponents(s, "L1").map((c) => c.id)).toEqual(["on"]);
+  });
+
+  it("stops a traced signal chain at a single-port sample", () => {
+    const s = state([
+      onLine("warm", "st300", 80),
+      { ...onLine("sample", "st4", 80), component_type: "dut" },
+      onLine("disconnected", "stmxc", 80),
+      box("Src", "Src"),
+      port("P", "L1"),
+    ]);
+    s.sheets.push(makeSheet({ id: RT, kind: "room_temp", sort_order: 1 }));
+    s.connections = [wire("Src", "P")];
+    expect(
+      tracedChainsForLine(s, "L1")[0].fridge.map((component) => component.id),
+    ).toEqual(["warm", "sample"]);
   });
 
   it("continues a bench chain down the linked line's stages", () => {

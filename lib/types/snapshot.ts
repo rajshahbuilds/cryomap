@@ -1,7 +1,10 @@
 import { z } from "zod";
+import { wirePropertiesSchema } from "./wires";
 import { snapshotTypeSchema } from "./enums";
 import {
   annotationRowSchema,
+  wireSegmentPropertiesRowSchema,
+  type WireSegmentProperties,
   componentRowSchema,
   connectionRowSchema,
   customComponentDefRowSchema,
@@ -34,6 +37,7 @@ export const snapshotSchema = z.object({
   sheets: z.array(sheetRowSchema).default([]),
   // Defaulted so snapshots taken before annotations still validate.
   annotations: z.array(annotationRowSchema).default([]),
+  wire_segment_properties: z.array(wireSegmentPropertiesRowSchema).default([]),
   snapshotted_at: z.string(),
 });
 export type Snapshot = z.infer<typeof snapshotSchema>;
@@ -47,6 +51,7 @@ export interface DiagramState {
   customDefs: CustomComponentDef[];
   connections: Connection[];
   annotations: Annotation[];
+  wireSegmentProperties: WireSegmentProperties[];
 }
 
 /** Serialize live diagram state into a snapshot payload. */
@@ -62,6 +67,7 @@ export function serializeSnapshot(
     connections: state.connections,
     sheets: state.sheets,
     annotations: state.annotations,
+    wire_segment_properties: state.wireSegmentProperties,
     snapshotted_at: snapshottedAt,
   };
 }
@@ -74,8 +80,8 @@ export function parseSnapshot(input: unknown): Snapshot {
 /**
  * Inverse of `serializeSnapshot`: a snapshot back into editor state.
  *
- * The arrays added after the first release (`connections`, `sheets`, then
- * `annotations`) are coalesced rather than read straight through. `snapshotSchema`
+ * The arrays added after the first release (`connections`, `sheets`,
+ * `annotations`, and `wire_segment_properties`) are coalesced rather than read straight through. `snapshotSchema`
  * defaults them, but `versionsRepo` *casts* its rows instead of parsing them, so a
  * snapshot stored before those fields existed arrives here with the keys genuinely
  * absent — and `undefined.length` is a crash, not a blank diagram. Every version
@@ -85,11 +91,34 @@ export function snapshotToState(snapshot: Snapshot): DiagramState {
   return {
     sheets: snapshot.sheets ?? [],
     stages: snapshot.stages,
-    lines: snapshot.lines,
-    components: snapshot.components,
+    lines: snapshot.lines.map((line) => ({
+      ...line,
+      direction: line.direction ?? "input",
+      entry_wire_properties: wirePropertiesSchema.parse(
+        line.entry_wire_properties ?? {},
+      ),
+    })),
+    components: snapshot.components.map((component) => ({
+      ...component,
+      line_entry_port: component.line_entry_port ?? null,
+      line_exit_port: component.line_exit_port ?? null,
+    })),
     customDefs: snapshot.custom_defs,
-    connections: snapshot.connections ?? [],
+    connections: (snapshot.connections ?? []).map((connection) => ({
+      ...connection,
+      wire_properties: wirePropertiesSchema.parse(
+        connection.wire_properties ?? {},
+      ),
+    })),
     annotations: snapshot.annotations ?? [],
+    wireSegmentProperties: (snapshot.wire_segment_properties ?? []).map(
+      (segment) => ({
+        ...segment,
+        wire_properties: wirePropertiesSchema.parse(
+          segment.wire_properties ?? {},
+        ),
+      }),
+    ),
   };
 }
 

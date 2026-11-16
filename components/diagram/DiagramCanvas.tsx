@@ -1,5 +1,6 @@
 "use client";
 
+import { LINE_ENDPOINT_HEADER } from "@/lib/diagram/lineConnections";
 import type { DiagramView } from "@/lib/diagram/assemble";
 import { stagesHeight } from "@/lib/diagram/stages";
 import { useCanvas } from "@/lib/hooks/useCanvas";
@@ -12,9 +13,12 @@ import { WireJunctions, WireSegments } from "./WireSegment";
 
 /** Read-only render of an assembled diagram view (live state or a snapshot). */
 export function DiagramCanvas({ view }: { view: DiagramView }) {
-  const controller = useCanvas();
+  const controller = useCanvas({
+    topInset: view.lines.length ? LINE_ENDPOINT_HEADER : 0,
+  });
   return (
     <Canvas
+      topInset={view.lines.length ? LINE_ENDPOINT_HEADER : 0}
       controller={controller}
       background={<StagesBands stages={view.stages} />}
     >
@@ -22,6 +26,7 @@ export function DiagramCanvas({ view }: { view: DiagramView }) {
         lines={view.lines}
         height={stagesHeight(view.stages) || undefined}
       />
+      <WireSegments wires={view.lineWires} />
       <WireSegments wires={view.wires} />
       {view.positioned.map(({ component, x, y }) => (
         <ComponentSymbol

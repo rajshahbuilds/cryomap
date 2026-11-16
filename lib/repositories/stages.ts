@@ -11,20 +11,30 @@ export const stagesRepo = (db: Db) => ({
     return unwrap(res) as Stage[];
   },
 
-  async create(input: StageCreateInput): Promise<Stage> {
-    const res = await db.from("stages").insert(input).select().single();
+  // Snapshot-compatible inputs allow missing sheet ids; live writes are
+  // constrained by the database NOT NULL check. Restore remaps them first.
+  async create(input: StageCreateInput, id?: string): Promise<Stage> {
+    const res = await db
+      .from("stages")
+      .insert({ ...input, ...(id ? { id } : {}), sheet_id: input.sheet_id! })
+      .select()
+      .single();
     return unwrap(res) as Stage;
   },
 
   async createMany(inputs: StageCreateInput[]): Promise<Stage[]> {
-    const res = await db.from("stages").insert(inputs).select();
+    const res = await db
+      .from("stages")
+      .insert(inputs.map((input) => ({ ...input, sheet_id: input.sheet_id! })))
+      .select();
     return unwrap(res) as Stage[];
   },
 
   async update(id: string, patch: StageUpdateInput): Promise<Stage> {
+    const { sheet_id, ...values } = patch;
     const res = await db
       .from("stages")
-      .update(patch)
+      .update({ ...values, ...(sheet_id != null ? { sheet_id } : {}) })
       .eq("id", id)
       .select()
       .single();

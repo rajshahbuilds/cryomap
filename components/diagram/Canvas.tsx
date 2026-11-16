@@ -11,6 +11,7 @@ interface CanvasProps {
   /** Logical size of the drawable paper + grid. Defaults to the max space. */
   width?: number;
   height?: number;
+  topInset?: number;
   /** Backmost layer, rendered beneath the dot grid (e.g. stage bands). */
   background?: ReactNode;
   /**
@@ -33,6 +34,7 @@ export function Canvas({
   controller,
   width = LOGICAL_WIDTH,
   height = LOGICAL_HEIGHT,
+  topInset = 0,
   background,
   onBackgroundDoubleClick,
   children,
@@ -43,6 +45,7 @@ export function Canvas({
     <svg
       ref={ref}
       role="presentation"
+      data-top-inset={topInset}
       viewBox={viewBoxString}
       preserveAspectRatio="xMidYMid meet"
       className={`h-full w-full touch-none select-none ${
@@ -73,9 +76,9 @@ export function Canvas({
 
       <rect
         x={0}
-        y={0}
+        y={-topInset}
         width={width}
-        height={height}
+        height={height + topInset}
         data-canvas-bg=""
         className="fill-surface stroke-border"
         strokeWidth={1}

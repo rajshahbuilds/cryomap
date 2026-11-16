@@ -5,6 +5,7 @@
  * against the canonical Zod schemas and can be composed into snapshots. Pass
  * `overrides` to set the fields a given test cares about.
  */
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
 import type {
   Annotation,
   Component,
@@ -68,6 +69,7 @@ export function makeDiagramState(
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
     ...overrides,
   };
 }
@@ -96,6 +98,7 @@ export function makeLine(overrides: Partial<Line> = {}): Line {
     name: "Q1 XY drive",
     line_type: "xy_drive",
     direction: "input",
+    entry_wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
     status: "planned",
     notes: null,
     sort_order: 0,
@@ -114,6 +117,8 @@ export function makeComponent(overrides: Partial<Component> = {}): Component {
     line_id: null,
     stage_id: null,
     linked_line_id: null,
+    line_entry_port: null,
+    line_exit_port: null,
     component_type: "attenuator",
     custom_def_id: null,
     label: null,
@@ -180,6 +185,7 @@ export function makeConnection(
     fridge_id: FRIDGE_ID,
     sheet_id: SHEET_ID,
     from_component_id: newId(),
+    wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
     from_port_side: "right",
     from_port_index: 0,
     to_component_id: newId(),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { wirePropertiesSchema, DEFAULT_WIRE_PROPERTIES } from "./wires";
 import {
   directionSchema,
   entityStatusSchema,
@@ -175,7 +176,9 @@ export const lineRowSchema = z.object({
   sheet_id: uuid.nullable().default(null),
   name: z.string(),
   line_type: lineTypeSchema.nullable(),
-  direction: directionSchema.nullable(),
+  entry_wire_properties: wirePropertiesSchema.default(DEFAULT_WIRE_PROPERTIES),
+  // Historical snapshots may contain null; live lines always have a direction.
+  direction: z.preprocess((value) => value ?? "input", directionSchema),
   status: entityStatusSchema,
   notes: z.string().nullable(),
   sort_order: z.number().int(),
@@ -192,7 +195,8 @@ export const lineCreateSchema = z.object({
   sheet_id: uuid.nullish(),
   name: z.string().min(1),
   line_type: lineTypeSchema.nullish(),
-  direction: directionSchema.nullish(),
+  direction: directionSchema.optional(),
+  entry_wire_properties: wirePropertiesSchema.optional(),
   status: entityStatusSchema.optional(),
   notes: z.string().nullish(),
   sort_order: z.number().int(),
@@ -248,6 +252,8 @@ export const componentRowSchema = z.object({
   // clicking that line traces the bench chain driving it. Defaulted so
   // older snapshots still validate.
   linked_line_id: uuid.nullable().default(null),
+  line_entry_port: portSchema.nullable().default(null),
+  line_exit_port: portSchema.nullable().default(null),
   component_type: componentTypeSchema,
   custom_def_id: uuid.nullable(),
   label: z.string().nullable(),
@@ -279,6 +285,8 @@ export const componentCreateSchema = z.object({
   line_id: uuid.nullish(),
   stage_id: uuid.nullish(),
   linked_line_id: uuid.nullish(),
+  line_entry_port: portSchema.nullish(),
+  line_exit_port: portSchema.nullish(),
   component_type: componentTypeSchema,
   custom_def_id: uuid.nullish(),
   label: z.string().nullish(),
@@ -331,11 +339,13 @@ export const connectionRowSchema = z.object({
   to_component_id: uuid,
   to_port_side: portSideSchema,
   to_port_index: z.number().int(),
+  wire_properties: wirePropertiesSchema.default(DEFAULT_WIRE_PROPERTIES),
   created_at: timestamp,
 });
 export type Connection = z.infer<typeof connectionRowSchema>;
 
 export const connectionCreateSchema = z.object({
+  wire_properties: wirePropertiesSchema.optional(),
   fridge_id: uuid,
   sheet_id: uuid.nullish(),
   from_component_id: uuid,
@@ -346,6 +356,34 @@ export const connectionCreateSchema = z.object({
   to_port_index: z.number().int().nonnegative().optional(),
 });
 export type ConnectionCreateInput = z.infer<typeof connectionCreateSchema>;
+
+export const connectionUpdateSchema = z.object({
+  wire_properties: wirePropertiesSchema.optional(),
+});
+export type ConnectionUpdateInput = z.infer<typeof connectionUpdateSchema>;
+
+// Saved properties of a generated fridge segment; these rows do not add wires.
+export const wireSegmentPropertiesRowSchema = z.object({
+  id: uuid,
+  fridge_id: uuid,
+  sheet_id: uuid,
+  line_id: uuid,
+  from_component_id: uuid,
+  to_component_id: uuid,
+  wire_properties: wirePropertiesSchema.default(DEFAULT_WIRE_PROPERTIES),
+  created_at: timestamp,
+});
+export type WireSegmentProperties = z.infer<
+  typeof wireSegmentPropertiesRowSchema
+>;
+export const wireSegmentPropertiesCreateSchema = wireSegmentPropertiesRowSchema
+  .omit({ id: true, created_at: true })
+  .extend({ wire_properties: wirePropertiesSchema.optional() });
+export type WireSegmentPropertiesCreateInput = z.infer<
+  typeof wireSegmentPropertiesCreateSchema
+>;
+export const wireSegmentPropertiesUpdateSchema = connectionUpdateSchema;
+export type WireSegmentPropertiesUpdateInput = ConnectionUpdateInput;
 
 // annotations --------------------------------------------------------------
 // Free-floating text on a sheet: a positioned note, not attached to any

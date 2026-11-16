@@ -64,13 +64,20 @@ function inlineComputedStyles(live: Element, clone: Element): void {
 }
 
 /** Serialize the diagram into a self-contained, full-extent SVG string. */
-function serializeDiagram(svg: SVGSVGElement, size: Size): string {
+export function serializeDiagram(svg: SVGSVGElement, size: Size): string {
+  const topInset = Number(svg.dataset.topInset) || 0;
   const clone = svg.cloneNode(true) as SVGSVGElement;
   inlineComputedStyles(svg, clone);
+  clone
+    .querySelectorAll("[data-editor-only]")
+    .forEach((element) => element.remove());
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  clone.setAttribute("viewBox", `0 0 ${size.width} ${size.height}`);
+  clone.setAttribute(
+    "viewBox",
+    `0 ${-topInset} ${size.width} ${size.height + topInset}`,
+  );
   clone.setAttribute("width", String(size.width));
-  clone.setAttribute("height", String(size.height));
+  clone.setAttribute("height", String(size.height + topInset));
   clone.setAttribute("preserveAspectRatio", "xMidYMid meet");
   clone.removeAttribute("class");
   return new XMLSerializer().serializeToString(clone);
@@ -81,6 +88,7 @@ async function captureCanvas(
   svg: SVGSVGElement,
   size: Size,
 ): Promise<HTMLCanvasElement> {
+  const height = size.height + (Number(svg.dataset.topInset) || 0);
   const svgString = serializeDiagram(svg, size);
   const url = URL.createObjectURL(
     new Blob([svgString], { type: "image/svg+xml;charset=utf-8" }),
@@ -88,7 +96,7 @@ async function captureCanvas(
   try {
     const image = new Image();
     image.width = size.width;
-    image.height = size.height;
+    image.height = height;
     await new Promise<void>((resolve, reject) => {
       image.onload = () => resolve();
       image.onerror = () => reject(new Error("Could not render the diagram."));
@@ -97,7 +105,7 @@ async function captureCanvas(
 
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(size.width * PIXEL_RATIO);
-    canvas.height = Math.round(size.height * PIXEL_RATIO);
+    canvas.height = Math.round(height * PIXEL_RATIO);
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Could not render the diagram.");
     ctx.fillStyle = "#ffffff";

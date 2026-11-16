@@ -4,6 +4,7 @@ import {
   annotationsRepo,
   componentsRepo,
   connectionsRepo,
+  wireSegmentPropertiesRepo,
   customComponentDefsRepo,
   linesRepo,
   sheetsRepo,
@@ -39,6 +40,7 @@ export async function restoreVersion(
   // safety; the fake doesn't cascade, so connections are removed explicitly).
   // Sheets go last: stages, lines, components, connections, and annotations all
   // point at them.
+  await wireSegmentPropertiesRepo(db).removeByFridge(fridgeId);
   await connectionsRepo(db).removeByFridge(fridgeId);
   await annotationsRepo(db).removeByFridge(fridgeId);
   await componentsRepo(db).removeByFridge(fridgeId);

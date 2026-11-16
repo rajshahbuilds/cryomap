@@ -7,6 +7,7 @@ export { sheetsRepo } from "./sheets";
 export { stagesRepo } from "./stages";
 export { linesRepo } from "./lines";
 export { componentsRepo } from "./components";
+export { wireSegmentPropertiesRepo } from "./wireSegmentProperties";
 export { connectionsRepo } from "./connections";
 export { annotationsRepo } from "./annotations";
 export { customComponentDefsRepo } from "./customComponentDefs";

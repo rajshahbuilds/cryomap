@@ -90,6 +90,8 @@ function copyInput(c: Component, xAbs: number | null, yAbs: number | null) {
     line_id: c.line_id,
     stage_id: c.stage_id,
     linked_line_id: c.linked_line_id,
+    line_entry_port: c.line_entry_port,
+    line_exit_port: c.line_exit_port,
     custom_def_id: c.custom_def_id,
     label: c.label,
     value: c.value,
@@ -114,6 +116,7 @@ function copyInput(c: Component, xAbs: number | null, yAbs: number | null) {
 export async function duplicateComponent(
   db: Db,
   component: Component,
+  id?: string,
 ): Promise<Component> {
   const offset = 20;
   return componentsRepo(db).create(
@@ -122,6 +125,7 @@ export async function duplicateComponent(
       component.x_abs != null ? component.x_abs + offset : null,
       component.y_abs != null ? component.y_abs + offset : null,
     ),
+    id,
   );
 }
 
@@ -138,8 +142,11 @@ export async function recreateComponent(
     stage_id?: string | null;
   } = {},
 ): Promise<Component> {
-  return componentsRepo(db).create({
-    ...copyInput(component, component.x_abs, component.y_abs),
-    ...overrides,
-  });
+  return componentsRepo(db).create(
+    {
+      ...copyInput(component, component.x_abs, component.y_abs),
+      ...overrides,
+    },
+    component.id,
+  );
 }

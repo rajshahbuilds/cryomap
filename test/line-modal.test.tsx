@@ -37,7 +37,7 @@ describe("LineModal", () => {
     });
   });
 
-  it("sends null type and direction when left unset", async () => {
+  it("defaults to Input and offers only the three supported directions", async () => {
     const onConfirm = vi.fn();
     const { user } = renderWithProviders(
       <LineModal
@@ -46,11 +46,15 @@ describe("LineModal", () => {
         onClose={vi.fn()}
       />,
     );
+    expect(screen.getByLabelText("Direction")).toHaveValue("input");
+    expect(
+      screen.getByLabelText("Direction").querySelectorAll("option"),
+    ).toHaveLength(3);
     await user.click(screen.getByRole("button", { name: /create line/i }));
     expect(onConfirm).toHaveBeenCalledWith({
       name: "Line 3",
       lineType: null,
-      direction: null,
+      direction: "input",
     });
   });
 });

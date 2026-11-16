@@ -1,5 +1,8 @@
 "use client";
 
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
+
+import { LINE_ENDPOINT_HEADER } from "@/lib/diagram/lineConnections";
 import {
   useCallback,
   useEffect,
@@ -74,6 +77,7 @@ function emptyDemoState(): DiagramState {
     customDefs: [],
     connections: [],
     annotations: [],
+    wireSegmentProperties: [],
   };
 }
 
@@ -167,6 +171,8 @@ export function DemoDiagramEditor() {
         component_type: type,
         custom_def_id: null,
         linked_line_id: null,
+        line_entry_port: null,
+        line_exit_port: null,
         label: defaults.label ?? null,
         value: defaults.value ?? null,
         manufacturer: null,
@@ -231,6 +237,7 @@ export function DemoDiagramEditor() {
   );
 
   const canvas = useCanvas({
+    topInset: view.lines.length ? LINE_ENDPOINT_HEADER : 0,
     onLogicalPointerMove: handlePointerMove,
     onLogicalPointerUp: handlePointerUp,
   });
@@ -275,7 +282,8 @@ export function DemoDiagramEditor() {
       sheet_id: DEMO_SHEET_ID,
       name: `Line ${index + 1}`,
       line_type: null,
-      direction: null,
+      direction: "input",
+      entry_wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
       status: "planned",
       notes: null,
       sort_order: index,
@@ -501,6 +509,7 @@ export function DemoDiagramEditor() {
         />
         <div className="relative min-w-0 flex-1 bg-background">
           <Canvas
+            topInset={view.lines.length ? LINE_ENDPOINT_HEADER : 0}
             controller={canvas}
             width={bounds.width}
             height={bounds.height}
@@ -509,6 +518,7 @@ export function DemoDiagramEditor() {
             }
           >
             <LineColumns lines={view.lines} height={bounds.height} />
+            <WireSegments wires={view.lineWires} />
             <WireSegments wires={view.wires} />
             {view.positioned.map(({ component, x, y }) => {
               const moving = component.id === draggingId && movePreview?.valid;
@@ -575,6 +585,8 @@ export function DemoDiagramEditor() {
                         COMPONENT_LIBRARY[placing.type].defaultFields.value ??
                         null,
                       linked_line_id: null,
+                      line_entry_port: null,
+                      line_exit_port: null,
                     } as Component
                   }
                   x={ghost.x}

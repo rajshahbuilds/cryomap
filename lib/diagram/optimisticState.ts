@@ -30,6 +30,11 @@ export function withoutComponents(
     components: state.components.filter(
       (component) => !removed.has(component.id),
     ),
+    wireSegmentProperties: state.wireSegmentProperties.filter(
+      (segment) =>
+        !removed.has(segment.from_component_id) &&
+        !removed.has(segment.to_component_id),
+    ),
     connections: state.connections.filter(
       (connection) =>
         !removed.has(connection.from_component_id) &&

@@ -24,19 +24,26 @@ export const fridgesRepo = (db: Db) => ({
     return unwrapNullable(res) as Fridge | null;
   },
 
+  // The legacy domain shape permits a missing workspace; the live database
+  // requires one. Workspace-scoped creation supplies it before reaching here.
   async create(input: FridgeCreateInput, createdBy?: string): Promise<Fridge> {
     const res = await db
       .from("fridges")
-      .insert({ ...input, created_by: createdBy ?? null })
+      .insert({
+        ...input,
+        workspace_id: input.workspace_id!,
+        created_by: createdBy ?? null,
+      })
       .select()
       .single();
     return unwrap(res) as Fridge;
   },
 
   async update(id: string, patch: FridgeUpdateInput): Promise<Fridge> {
+    const { workspace_id, ...values } = patch;
     const res = await db
       .from("fridges")
-      .update(patch)
+      .update({ ...values, ...(workspace_id != null ? { workspace_id } : {}) })
       .eq("id", id)
       .select()
       .single();

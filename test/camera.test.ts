@@ -186,3 +186,10 @@ describe("wheelToCamera", () => {
     expect(next.scale).toBeLessThan(camera.scale); // positive deltaY zooms out
   });
 });
+
+describe("line endpoint header", () => {
+  it("reveals the header without changing component coordinates or scale", () => {
+    const base = defaultCamera();
+    expect(defaultCamera(80)).toEqual({ ...base, y: base.y - 80 });
+  });
+});

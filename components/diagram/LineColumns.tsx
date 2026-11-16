@@ -5,6 +5,9 @@ import type { Line } from "@/lib/types";
 import { LOGICAL_HEIGHT } from "@/lib/diagram/camera";
 import { layoutLineColumns } from "@/lib/diagram/lines";
 import { getLineTypeColor } from "@/lib/constants/lineTypes";
+import { COMPONENT_LIBRARY } from "@/lib/constants/componentLibrary";
+import { SYMBOL_GLYPHS } from "./symbolGlyphs";
+import { LINE_ENDPOINT_Y } from "@/lib/diagram/lineConnections";
 
 /** Trunk color for untyped lines. */
 const DEFAULT_LINE_COLOR = "#6b7280";
@@ -20,6 +23,8 @@ interface LineColumnsProps {
   lines: Line[];
   /** Trunk height in logical units (defaults to the full logical space). */
   height?: number;
+  /** Placement aids are editing UI, never electrical connections. */
+  showGuides?: boolean;
   /** Line ids to emphasize (e.g. lines of selected components). */
   highlightLineIds?: string[];
   /** Select a line by clicking its label. */
@@ -33,14 +38,15 @@ interface LineColumnsProps {
 }
 
 /**
- * Vertical signal-line columns: a thin colored trunk per line, ordered by
- * `sort_order`, with an optional top label. When editable, hovering a trunk
- * thickens it and turns the cursor into a horizontal-move affordance; dragging
+ * Signal-line endpoints and optional editing guides, ordered by
+ * `sort_order`, with an optional top label. When editable, hovering a guide
+ * emphasizes it and turns the cursor into a horizontal-move affordance; dragging
  * slides the line (and reflows the lines to its right).
  */
 export function LineColumns({
   lines,
   height = LOGICAL_HEIGHT,
+  showGuides = false,
   highlightLineIds = [],
   onSelectLine,
   onStartMove,
@@ -53,24 +59,73 @@ export function LineColumns({
     <g data-testid="line-columns">
       {columns.map(({ line, x, prevX }) => {
         const color = trunkColor(line);
+        const type =
+          line.direction === "output"
+            ? "output_port"
+            : line.direction === "bidirectional"
+              ? "bidir_port"
+              : "input_port";
+        const size = COMPONENT_LIBRARY[type].defaultSize;
+        const centerY = LINE_ENDPOINT_Y - size.width / 2;
+        const glyph = SYMBOL_GLYPHS[type]({ w: size.width, h: size.height });
         const isHighlighted = highlighted.has(line.id);
         const isHovered = onStartMove != null && hoveredId === line.id;
         return (
           <g key={line.id}>
-            <line
-              x1={x}
-              y1={0}
-              x2={x}
-              y2={height}
-              stroke={color}
-              strokeWidth={isHighlighted || isHovered ? 5 : 3}
-              opacity={isHighlighted || isHovered ? 1 : 0.85}
-            />
+            {showGuides ? (
+              <line
+                data-editor-only="true"
+                data-testid={`line-guide-${line.id}`}
+                x1={x}
+                y1={LINE_ENDPOINT_Y}
+                x2={x}
+                y2={height}
+                stroke={color}
+                strokeWidth={1}
+                strokeDasharray="2 8"
+                opacity={isHighlighted || isHovered ? 0.35 : 0.12}
+                pointerEvents="none"
+              />
+            ) : null}
+            <g
+              data-testid={`line-endpoint-${line.id}`}
+              data-direction={line.direction}
+              role={onSelectLine ? "button" : "img"}
+              aria-label={`${line.name}: ${line.direction === "output" ? "Output" : line.direction === "bidirectional" ? "Bidirectional" : "Input"} line endpoint`}
+              tabIndex={onSelectLine ? 0 : undefined}
+              style={{ cursor: onSelectLine ? "pointer" : undefined }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectLine?.(line.id);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelectLine?.(line.id);
+                }
+              }}
+            >
+              <g
+                transform={`translate(${x} ${centerY}) rotate(270)`}
+                data-component-type={type}
+              >
+                {glyph.frame}
+              </g>
+              <circle
+                cx={x}
+                cy={LINE_ENDPOINT_Y}
+                r={3}
+                fill="#1a1d27"
+                pointerEvents="none"
+              />
+            </g>
             {line.show_label ? (
               <text
-                x={x}
-                y={18}
-                textAnchor="middle"
+                x={x + size.height / 2 + 12}
+                y={centerY + 4}
+                textAnchor="start"
                 fontSize={14}
                 fontWeight={600}
                 fill={color}

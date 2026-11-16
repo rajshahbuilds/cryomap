@@ -34,6 +34,7 @@ function build(
     customDefs: [],
     connections,
     annotations: [],
+    wireSegmentProperties: [],
   };
 }
 
@@ -99,8 +100,8 @@ describe("assembleDiagram wiring", () => {
       ]),
     );
     expect(view.wires.map((w) => w.key)).toEqual(["a0-a1"]);
-    expect(view.wires[0].from).toEqual({ x: lineColumnX(0), y: 60 });
-    expect(view.wires[0].to).toEqual({ x: lineColumnX(0), y: 170 });
+    expect(view.wires[0].from).toEqual({ x: lineColumnX(0), y: 100 });
+    expect(view.wires[0].to).toEqual({ x: lineColumnX(0), y: 130 });
   });
 
   it("does not wire free-floating components", () => {
@@ -195,7 +196,7 @@ describe("assembleDiagram wiring", () => {
     // The explicit wire carries a semicircular hop (arc) where it meets the trunk.
     expect(view.explicitWires[0].path).toContain("A 6 6");
     // The trunk itself stays straight (only horizontals hop).
-    expect(view.wires[0].path).toBe(`M ${x0} 60 L ${x0} 170`);
+    expect(view.wires[0].path).toBe(`M ${x0} 100 L ${x0} 130`);
   });
 
   it("drops connections whose endpoints can't be placed", () => {
@@ -225,6 +226,7 @@ describe("assembleDiagram custom defs", () => {
       customDefs: [def],
       connections: [],
       annotations: [],
+      wireSegmentProperties: [],
     });
     expect(view.customDefById.get("d1")?.name).toBe("Splitter");
   });
@@ -244,6 +246,7 @@ describe("assembleDiagram lineNameById", () => {
         customDefs: [],
         connections: [],
         annotations: [],
+        wireSegmentProperties: [],
       },
       "rt",
     );
@@ -264,6 +267,7 @@ describe("assembleDiagram annotations", () => {
         components: [],
         customDefs: [],
         connections: [],
+        wireSegmentProperties: [],
         annotations: [
           makeAnnotation({ id: "n1", sheet_id: "sheet1" }),
           makeAnnotation({ id: "n2", sheet_id: "sheet2" }),
@@ -333,6 +337,7 @@ describe("assembleDiagram crossing hops", () => {
         }),
       ],
       annotations: [],
+      wireSegmentProperties: [],
     });
     const cross = view.explicitWires.find((w) => w.key === "cross");
     // The crossing wire arcs (hops) over the drop instead of crossing it flat.

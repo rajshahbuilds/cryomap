@@ -21,6 +21,7 @@ describe("addLine", () => {
     expect(line.fridge_id).toBe(F);
     expect(line.sheet_id).toBe(SHEET);
     expect(line.sort_order).toBe(1);
+    expect(line.direction).toBe("input");
   });
 });
 

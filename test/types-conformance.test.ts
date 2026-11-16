@@ -8,6 +8,7 @@ import type {
   Lock,
   Component,
   Connection,
+  WireSegmentProperties,
   CustomComponentDef,
   Sheet,
   Annotation,
@@ -25,19 +26,33 @@ import type {
  * omitted from their table's check — the generated type for those is `Json`,
  * which our typed shapes deliberately diverge from.
  */
+// Historical snapshots retain nullable parent ids; current live rows require them.
+type Live<Domain, Keys extends keyof Domain> = Omit<Domain, Keys> & {
+  [Key in Keys]: NonNullable<Domain[Key]>;
+};
 type Conforms<Domain, DbRow> = Domain extends DbRow ? true : false;
 
 const CONFORMANCE = {
   profiles: true satisfies Conforms<Profile, Tables<"profiles">>,
-  fridges: true satisfies Conforms<Fridge, Tables<"fridges">>,
-  stages: true satisfies Conforms<Stage, Tables<"stages">>,
-  lines: true satisfies Conforms<Line, Tables<"lines">>,
+  fridges: true satisfies Conforms<
+    Live<Fridge, "workspace_id">,
+    Tables<"fridges">
+  >,
+  stages: true satisfies Conforms<Live<Stage, "sheet_id">, Tables<"stages">>,
+  lines: true satisfies Conforms<Live<Line, "sheet_id">, Tables<"lines">>,
   locks: true satisfies Conforms<Lock, Tables<"locks">>,
   sheets: true satisfies Conforms<Sheet, Tables<"sheets">>,
-  connections: true satisfies Conforms<Connection, Tables<"connections">>,
+  connections: true satisfies Conforms<
+    Live<Connection, "sheet_id">,
+    Tables<"connections">
+  >,
+  wire_segment_properties: true satisfies Conforms<
+    WireSegmentProperties,
+    Tables<"wire_segment_properties">
+  >,
   annotations: true satisfies Conforms<Annotation, Tables<"annotations">>,
   components: true satisfies Conforms<
-    Omit<Component, "extra_fields">,
+    Omit<Live<Component, "sheet_id">, "extra_fields">,
     Omit<Tables<"components">, "extra_fields">
   >,
   custom_component_defs: true satisfies Conforms<

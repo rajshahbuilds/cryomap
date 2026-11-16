@@ -63,4 +63,31 @@ echo "• running tenant-isolation suite"
 # Surface the suite's NOTICEs (pass/fail markers) on stderr→stdout.
 psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/tenant_isolation.sql" 2>&1
 
-echo "✓ tenant-isolation tests passed"
+echo "• running wire-properties suite"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/wire_properties.sql" 2>&1
+
+echo "• running line-endpoints suite"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/line_endpoints.sql" 2>&1
+
+echo "• running line-entry wire suite"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/line_entry_wires.sql" 2>&1
+
+echo "• verifying upgrade from the pre-wire schema"
+export PGDATABASE=cryomap_upgrade_test
+createdb -U postgres "$PGDATABASE"
+run "$HERE/_bootstrap.sql"
+for f in "$MIGR"/*.sql; do
+  if [ "$(basename "$f")" = "20261113180000_wire_properties.sql" ]; then
+    run "$HERE/_wire_properties_seed.sql"
+  fi
+  if [ "$(basename "$f")" = "20261115120000_line_endpoints.sql" ]; then
+    psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -c "update public.lines set direction=null where id='eeeeeeee-0000-4000-8000-000000000028'" >/dev/null
+  fi
+  run "$f"
+done
+run "$HERE/_grants.sql"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/_wire_properties_upgrade_check.sql" 2>&1
+
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/_line_endpoints_upgrade_check.sql" 2>&1
+
+echo "✓ tenant isolation, wire properties, line endpoints, and upgrade tests passed"

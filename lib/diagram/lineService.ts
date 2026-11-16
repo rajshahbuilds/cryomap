@@ -5,7 +5,7 @@ import { nextLineSortOrder, type LineOrderUpdate } from "./lineOps";
 export interface NewLineValues {
   name: string;
   lineType: LineType | null;
-  direction: Direction | null;
+  direction: Direction;
 }
 
 /** Add a new line at the end (next sort_order) of one fridge sheet. */
@@ -15,15 +15,19 @@ export async function addLine(
   sheetId: string,
   existing: Line[],
   values?: NewLineValues,
+  id?: string,
 ): Promise<Line> {
-  return linesRepo(db).create({
-    fridge_id: fridgeId,
-    sheet_id: sheetId,
-    name: values?.name ?? `Line ${existing.length + 1}`,
-    line_type: values?.lineType ?? null,
-    direction: values?.direction ?? null,
-    sort_order: nextLineSortOrder(existing),
-  });
+  return linesRepo(db).create(
+    {
+      fridge_id: fridgeId,
+      sheet_id: sheetId,
+      name: values?.name ?? `Line ${existing.length + 1}`,
+      line_type: values?.lineType ?? null,
+      direction: values?.direction ?? "input",
+      sort_order: nextLineSortOrder(existing),
+    },
+    id,
+  );
 }
 
 export async function renameLine(

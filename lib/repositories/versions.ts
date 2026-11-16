@@ -26,7 +26,7 @@ export const versionsRepo = (db: Db) => ({
       .insert({
         fridge_id: input.fridge_id,
         // `snapshot` is a jsonb column typed as `Json` by the generated client.
-        snapshot: input.snapshot as unknown as Json,
+        snapshot: input.snapshot as unknown as NonNullable<Json>,
         commit_message: input.commit_message,
         tag: input.tag ?? null,
         snapshot_type: input.snapshot_type ?? "current",

@@ -129,3 +129,19 @@ export type Rotation = z.infer<typeof rotationSchema>;
 export const WORKSPACE_ROLES = ["admin", "editor", "viewer"] as const;
 export const workspaceRoleSchema = z.enum(WORKSPACE_ROLES);
 export type WorkspaceRole = z.infer<typeof workspaceRoleSchema>;
+
+/** Physical wire construction, separate from material and signal-line purpose. */
+export const WIRE_CONSTRUCTIONS = [
+  "unspecified",
+  "single",
+  "parallel_pair",
+  "twisted_pair",
+  "two_twisted_pairs",
+  "ribbon",
+  "multicore",
+  "coaxial",
+  "triaxial",
+  "custom",
+] as const;
+export const wireConstructionSchema = z.enum(WIRE_CONSTRUCTIONS);
+export type WireConstruction = z.infer<typeof wireConstructionSchema>;

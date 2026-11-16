@@ -20,19 +20,23 @@ export interface PlaceComponentInput {
 export async function createPlacedComponent(
   db: Db,
   input: PlaceComponentInput,
+  id?: string,
 ): Promise<Component> {
   const defaults =
     input.componentType === "custom"
       ? {}
       : COMPONENT_LIBRARY[input.componentType].defaultFields;
 
-  return componentsRepo(db).create({
-    fridge_id: input.fridgeId,
-    sheet_id: input.sheetId,
-    component_type: input.componentType,
-    custom_def_id: input.customDefId ?? null,
-    label: defaults.label ?? null,
-    value: defaults.value ?? null,
-    ...targetToPosition(input.target),
-  });
+  return componentsRepo(db).create(
+    {
+      fridge_id: input.fridgeId,
+      sheet_id: input.sheetId,
+      component_type: input.componentType,
+      custom_def_id: input.customDefId ?? null,
+      label: defaults.label ?? null,
+      value: defaults.value ?? null,
+      ...targetToPosition(input.target),
+    },
+    id,
+  );
 }

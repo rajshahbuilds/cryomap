@@ -127,6 +127,90 @@ describe("PropertiesPanel contexts", () => {
     expect(screen.getByLabelText("Show label")).toBeInTheDocument();
   });
 
+  it("offers exactly three line directions", () => {
+    renderWithProviders(
+      <PropertiesPanel
+        selection={{ kind: "line", line: makeLine() }}
+        readOnly={false}
+        onSave={vi.fn()}
+      />,
+    );
+    const direction = screen.getByLabelText("Direction");
+    expect(direction).toHaveValue("input");
+    expect(
+      [...direction.querySelectorAll("option")].map((o) => o.value),
+    ).toEqual(["input", "output", "bidirectional"]);
+  });
+  it("saves branch port choices independently of other component drafts", async () => {
+    const onSave = vi.fn();
+    const { user } = renderWithProviders(
+      <PropertiesPanel
+        selection={{
+          kind: "component",
+          component: makeComponent({
+            line_id: "line",
+            component_type: "circulator",
+          }),
+          def: null,
+        }}
+        readOnly={false}
+        onSave={onSave}
+      />,
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Connection above"),
+      "left:0",
+    );
+    expect(onSave).toHaveBeenLastCalledWith({
+      line_entry_port: { side: "left", index: 0 },
+    });
+  });
+  it("updates direction immediately and reflects undo", async () => {
+    const onSave = vi.fn();
+    const line = makeLine({ direction: "input" });
+    const { user, rerender } = renderWithProviders(
+      <PropertiesPanel
+        selection={{ kind: "line", line }}
+        readOnly={false}
+        onSave={onSave}
+      />,
+    );
+    await user.selectOptions(screen.getByLabelText("Direction"), "output");
+    expect(onSave).toHaveBeenLastCalledWith({ direction: "output" });
+    rerender(
+      <PropertiesPanel
+        selection={{ kind: "line", line: { ...line, direction: "output" } }}
+        readOnly={false}
+        onSave={onSave}
+      />,
+    );
+    expect(screen.getByLabelText("Direction")).toHaveValue("output");
+    rerender(
+      <PropertiesPanel
+        selection={{ kind: "line", line }}
+        readOnly={false}
+        onSave={onSave}
+      />,
+    );
+    expect(screen.getByLabelText("Direction")).toHaveValue("input");
+  });
+
+  it("disables port choices in read-only mode", () => {
+    renderWithProviders(
+      <PropertiesPanel
+        selection={{
+          kind: "component",
+          component: makeComponent({ line_id: "line" }),
+          def: null,
+        }}
+        readOnly
+        onSave={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Connection above")).toBeDisabled();
+    expect(screen.getByLabelText("Connection below")).toBeDisabled();
+  });
+
   it("shows fridge fields", () => {
     renderWithProviders(
       <PropertiesPanel

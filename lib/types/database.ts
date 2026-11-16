@@ -12,11 +12,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       annotations: {
@@ -30,6 +25,7 @@ export type Database = {
           x_abs: number
           y_abs: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -80,7 +76,7 @@ export type Database = {
           created_at: string
           custom_def_id: string | null
           datasheet_url: string | null
-          extra_fields: Json
+          extra_fields: NonNullable<Json>
           free_floating: boolean
           frequency_range: string | null
           fridge_id: string | null
@@ -88,6 +84,8 @@ export type Database = {
           label: string | null
           last_edited_at: string
           last_edited_by: string | null
+          line_entry_port: Json | null
+          line_exit_port: Json | null
           line_id: string | null
           linked_line_id: string | null
           manufacturer: string | null
@@ -97,19 +95,20 @@ export type Database = {
           power_rating: string | null
           rotation: number
           serial_number: string | null
-          sheet_id: string | null
+          sheet_id: string
           stage_id: string | null
           value: string | null
           x_abs: number | null
           x_offset: number
           y_abs: number | null
         }
+        ComputedFields: never
         Insert: {
           component_type: string
           created_at?: string
           custom_def_id?: string | null
           datasheet_url?: string | null
-          extra_fields?: Json
+          extra_fields?: NonNullable<Json>
           free_floating?: boolean
           frequency_range?: string | null
           fridge_id?: string | null
@@ -117,6 +116,8 @@ export type Database = {
           label?: string | null
           last_edited_at?: string
           last_edited_by?: string | null
+          line_entry_port?: Json | null
+          line_exit_port?: Json | null
           line_id?: string | null
           linked_line_id?: string | null
           manufacturer?: string | null
@@ -126,7 +127,7 @@ export type Database = {
           power_rating?: string | null
           rotation?: number
           serial_number?: string | null
-          sheet_id?: string | null
+          sheet_id: string
           stage_id?: string | null
           value?: string | null
           x_abs?: number | null
@@ -138,7 +139,7 @@ export type Database = {
           created_at?: string
           custom_def_id?: string | null
           datasheet_url?: string | null
-          extra_fields?: Json
+          extra_fields?: NonNullable<Json>
           free_floating?: boolean
           frequency_range?: string | null
           fridge_id?: string | null
@@ -146,6 +147,8 @@ export type Database = {
           label?: string | null
           last_edited_at?: string
           last_edited_by?: string | null
+          line_entry_port?: Json | null
+          line_exit_port?: Json | null
           line_id?: string | null
           linked_line_id?: string | null
           manufacturer?: string | null
@@ -155,7 +158,7 @@ export type Database = {
           power_rating?: string | null
           rotation?: number
           serial_number?: string | null
-          sheet_id?: string | null
+          sheet_id?: string
           stage_id?: string | null
           value?: string | null
           x_abs?: number | null
@@ -222,11 +225,13 @@ export type Database = {
           from_port_index: number
           from_port_side: string
           id: string
-          sheet_id: string | null
+          sheet_id: string
           to_component_id: string
           to_port_index: number
           to_port_side: string
+          wire_properties: NonNullable<Json>
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           fridge_id?: string | null
@@ -234,10 +239,11 @@ export type Database = {
           from_port_index?: number
           from_port_side: string
           id?: string
-          sheet_id?: string | null
+          sheet_id: string
           to_component_id: string
           to_port_index?: number
           to_port_side: string
+          wire_properties?: NonNullable<Json>
         }
         Update: {
           created_at?: string
@@ -246,10 +252,11 @@ export type Database = {
           from_port_index?: number
           from_port_side?: string
           id?: string
-          sheet_id?: string | null
+          sheet_id?: string
           to_component_id?: string
           to_port_index?: number
           to_port_side?: string
+          wire_properties?: NonNullable<Json>
         }
         Relationships: [
           {
@@ -291,9 +298,10 @@ export type Database = {
           height_px: number
           id: string
           name: string
-          ports: Json
+          ports: NonNullable<Json>
           width_px: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -302,7 +310,7 @@ export type Database = {
           height_px?: number
           id?: string
           name: string
-          ports?: Json
+          ports?: NonNullable<Json>
           width_px?: number
         }
         Update: {
@@ -313,7 +321,7 @@ export type Database = {
           height_px?: number
           id?: string
           name?: string
-          ports?: Json
+          ports?: NonNullable<Json>
           width_px?: number
         }
         Relationships: [
@@ -345,8 +353,9 @@ export type Database = {
           name: string
           updated_at: string
           vendor: string | null
-          workspace_id: string | null
+          workspace_id: string
         }
+        ComputedFields: never
         Insert: {
           archived?: boolean
           created_at?: string
@@ -358,7 +367,7 @@ export type Database = {
           name: string
           updated_at?: string
           vendor?: string | null
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           archived?: boolean
@@ -371,7 +380,7 @@ export type Database = {
           name?: string
           updated_at?: string
           vendor?: string | null
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -393,27 +402,30 @@ export type Database = {
       lines: {
         Row: {
           created_at: string
-          direction: string | null
+          direction: string
+          entry_wire_properties: NonNullable<Json>
           fridge_id: string | null
           id: string
           line_type: string | null
           name: string
           notes: string | null
-          sheet_id: string | null
+          sheet_id: string
           show_label: boolean
           sort_order: number
           status: string
           width_px: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
-          direction?: string | null
+          direction?: string
+          entry_wire_properties?: NonNullable<Json>
           fridge_id?: string | null
           id?: string
           line_type?: string | null
           name: string
           notes?: string | null
-          sheet_id?: string | null
+          sheet_id: string
           show_label?: boolean
           sort_order: number
           status?: string
@@ -421,13 +433,14 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          direction?: string | null
+          direction?: string
+          entry_wire_properties?: NonNullable<Json>
           fridge_id?: string | null
           id?: string
           line_type?: string | null
           name?: string
           notes?: string | null
-          sheet_id?: string | null
+          sheet_id?: string
           show_label?: boolean
           sort_order?: number
           status?: string
@@ -457,6 +470,7 @@ export type Database = {
           locked_at: string
           locked_by: string | null
         }
+        ComputedFields: never
         Insert: {
           expires_at?: string | null
           fridge_id: string
@@ -494,6 +508,7 @@ export type Database = {
           email: string | null
           id: string
         }
+        ComputedFields: never
         Insert: {
           avatar_url?: string | null
           created_at?: string
@@ -520,6 +535,7 @@ export type Database = {
           notes: string | null
           sort_order: number
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           fridge_id: string
@@ -558,9 +574,10 @@ export type Database = {
           locked: boolean
           name: string
           nominal_temp: string | null
-          sheet_id: string | null
+          sheet_id: string
           sort_order: number
         }
+        ComputedFields: never
         Insert: {
           color?: string | null
           fridge_id?: string | null
@@ -570,7 +587,7 @@ export type Database = {
           locked?: boolean
           name: string
           nominal_temp?: string | null
-          sheet_id?: string | null
+          sheet_id: string
           sort_order: number
         }
         Update: {
@@ -582,7 +599,7 @@ export type Database = {
           locked?: boolean
           name?: string
           nominal_temp?: string | null
-          sheet_id?: string | null
+          sheet_id?: string
           sort_order?: number
         }
         Relationships: [
@@ -610,10 +627,11 @@ export type Database = {
           created_at: string
           fridge_id: string | null
           id: string
-          snapshot: Json
+          snapshot: NonNullable<Json>
           snapshot_type: string
           tag: string | null
         }
+        ComputedFields: never
         Insert: {
           author_id?: string | null
           author_name?: string | null
@@ -621,7 +639,7 @@ export type Database = {
           created_at?: string
           fridge_id?: string | null
           id?: string
-          snapshot: Json
+          snapshot: NonNullable<Json>
           snapshot_type?: string
           tag?: string | null
         }
@@ -632,7 +650,7 @@ export type Database = {
           created_at?: string
           fridge_id?: string | null
           id?: string
-          snapshot?: Json
+          snapshot?: NonNullable<Json>
           snapshot_type?: string
           tag?: string | null
         }
@@ -653,6 +671,76 @@ export type Database = {
           },
         ]
       }
+      wire_segment_properties: {
+        Row: {
+          created_at: string
+          fridge_id: string
+          from_component_id: string
+          id: string
+          line_id: string
+          sheet_id: string
+          to_component_id: string
+          wire_properties: NonNullable<Json>
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          fridge_id: string
+          from_component_id: string
+          id?: string
+          line_id: string
+          sheet_id: string
+          to_component_id: string
+          wire_properties?: NonNullable<Json>
+        }
+        Update: {
+          created_at?: string
+          fridge_id?: string
+          from_component_id?: string
+          id?: string
+          line_id?: string
+          sheet_id?: string
+          to_component_id?: string
+          wire_properties?: NonNullable<Json>
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wire_segment_properties_fridge_id_fkey"
+            columns: ["fridge_id"]
+            isOneToOne: false
+            referencedRelation: "fridges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wire_segment_properties_from_component_id_fkey"
+            columns: ["from_component_id"]
+            isOneToOne: false
+            referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wire_segment_properties_line_id_fkey"
+            columns: ["line_id"]
+            isOneToOne: false
+            referencedRelation: "lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wire_segment_properties_sheet_id_fkey"
+            columns: ["sheet_id"]
+            isOneToOne: false
+            referencedRelation: "sheets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wire_segment_properties_to_component_id_fkey"
+            columns: ["to_component_id"]
+            isOneToOne: false
+            referencedRelation: "components"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_invites: {
         Row: {
           created_at: string
@@ -664,6 +752,7 @@ export type Database = {
           token: string
           workspace_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -708,6 +797,7 @@ export type Database = {
           user_id: string
           workspace_id: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           role?: Database["public"]["Enums"]["workspace_role"]
@@ -745,6 +835,7 @@ export type Database = {
           name: string
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           created_at?: string
           created_by?: string | null
@@ -774,6 +865,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_edit_fridge: { Args: { fid: string }; Returns: boolean }
+      can_read_fridge: { Args: { fid: string }; Returns: boolean }
       create_workspace: {
         Args: { workspace_name: string }
         Returns: {
@@ -800,6 +893,9 @@ export type Database = {
         Returns: Database["public"]["Enums"]["workspace_role"]
       }
       redeem_invite: { Args: { invite_token: string }; Returns: Json }
+      shares_workspace: { Args: { other_user: string }; Returns: boolean }
+      valid_line_port: { Args: { port: Json }; Returns: boolean }
+      valid_wire_properties: { Args: { properties: Json }; Returns: boolean }
     }
     Enums: {
       workspace_role: "admin" | "editor" | "viewer"
@@ -818,12 +914,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -845,13 +941,12 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -870,13 +965,12 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
-    | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -895,13 +989,12 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
-    | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -914,11 +1007,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

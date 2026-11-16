@@ -1,30 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-/** SSR-safe initial read; assume online when the API is unavailable. */
+/** Assume online when the environment doesn't expose browser connectivity. */
 function readOnline(): boolean {
-  if (typeof navigator === "undefined") return true;
-  return navigator.onLine;
+  return typeof navigator === "undefined" ? true : (navigator.onLine ?? true);
 }
 
-/**
- * Track the browser's connectivity via the `online`/`offline` events. Used to
- * disable mutating actions (check-in/check-out) while offline so writes don't
- * fail silently against an unreachable Supabase.
- */
+function subscribe(onChange: () => void) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
+// React uses this same value for SSR and the first hydration render, then
+// reads the real browser state. Node's navigator may exist without onLine.
+const serverSnapshot = () => true;
+
+/** Track connectivity to prevent mutating actions while the browser is offline. */
 export function useOnline(): boolean {
-  const [online, setOnline] = useState(readOnline);
-
-  useEffect(() => {
-    const sync = () => setOnline(readOnline());
-    window.addEventListener("online", sync);
-    window.addEventListener("offline", sync);
-    return () => {
-      window.removeEventListener("online", sync);
-      window.removeEventListener("offline", sync);
-    };
-  }, []);
-
-  return online;
+  return useSyncExternalStore(subscribe, readOnline, serverSnapshot);
 }
