@@ -18,3 +18,29 @@ test("root presents the public CryoMap homepage", async ({ page }) => {
     page.getByRole("link", { name: "Explore the code" }),
   ).toHaveCount(0);
 });
+
+test("homepage advertises a publicly accessible landscape share preview", async ({
+  page,
+  request,
+}) => {
+  await page.goto("/");
+  const imageUrl = "https://cryomap.vercel.app/share-preview.png";
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    imageUrl,
+  );
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+    "content",
+    "summary_large_image",
+  );
+  await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+    "content",
+    imageUrl,
+  );
+  const image = await request.get("/share-preview.png");
+  expect(image.ok()).toBeTruthy();
+  expect(image.headers()["content-type"]).toContain("image/png");
+  const png = await image.body();
+  expect(png.readUInt32BE(16)).toBe(1200);
+  expect(png.readUInt32BE(20)).toBe(630);
+});

@@ -17,12 +17,26 @@ export const metadata: Metadata = {
     type: "website",
     url: "/",
     siteName: "CryoMap",
+    images: [
+      {
+        url: "/share-preview.png",
+        width: 1200,
+        height: 630,
+        alt: "CryoMap — collaborative cryogenic wiring diagrams, with a connected Q1 drive across temperature stages.",
+      },
+    ],
     title: "CryoMap · Collaborative cryogenic wiring diagrams",
     description:
       "Open-source wiring documentation, versioning, and collaboration for quantum-hardware research labs.",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
+    images: [
+      {
+        url: "/share-preview.png",
+        alt: "CryoMap — collaborative cryogenic wiring diagrams, with a connected Q1 drive across temperature stages.",
+      },
+    ],
     title: "CryoMap · Collaborative cryogenic wiring diagrams",
     description:
       "Open-source wiring documentation, versioning, and collaboration for quantum-hardware research labs.",
