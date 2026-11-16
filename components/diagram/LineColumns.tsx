@@ -25,6 +25,7 @@ interface LineColumnsProps {
   height?: number;
   /** Placement aids are editing UI, never electrical connections. */
   showGuides?: boolean;
+  showEndpoints?: boolean;
   /** Line ids to emphasize (e.g. lines of selected components). */
   highlightLineIds?: string[];
   /** Select a line by clicking its label. */
@@ -47,6 +48,7 @@ export function LineColumns({
   lines,
   height = LOGICAL_HEIGHT,
   showGuides = false,
+  showEndpoints = true,
   highlightLineIds = [],
   onSelectLine,
   onStartMove,
@@ -87,41 +89,43 @@ export function LineColumns({
                 pointerEvents="none"
               />
             ) : null}
-            <g
-              data-testid={`line-endpoint-${line.id}`}
-              data-direction={line.direction}
-              role={onSelectLine ? "button" : "img"}
-              aria-label={`${line.name}: ${line.direction === "output" ? "Output" : line.direction === "bidirectional" ? "Bidirectional" : "Input"} line endpoint`}
-              tabIndex={onSelectLine ? 0 : undefined}
-              style={{ cursor: onSelectLine ? "pointer" : undefined }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectLine?.(line.id);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
+            {showEndpoints ? (
+              <g
+                data-testid={`line-endpoint-${line.id}`}
+                data-direction={line.direction}
+                role={onSelectLine ? "button" : "img"}
+                aria-label={`${line.name}: ${line.direction === "output" ? "Output" : line.direction === "bidirectional" ? "Bidirectional" : "Input"} line endpoint`}
+                tabIndex={onSelectLine ? 0 : undefined}
+                style={{ cursor: onSelectLine ? "pointer" : undefined }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
                   e.stopPropagation();
                   onSelectLine?.(line.id);
-                }
-              }}
-            >
-              <g
-                transform={`translate(${x} ${centerY}) rotate(270)`}
-                data-component-type={type}
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelectLine?.(line.id);
+                  }
+                }}
               >
-                {glyph.frame}
+                <g
+                  transform={`translate(${x} ${centerY}) rotate(270)`}
+                  data-component-type={type}
+                >
+                  {glyph.frame}
+                </g>
+                <circle
+                  cx={x}
+                  cy={LINE_ENDPOINT_Y}
+                  r={3}
+                  fill="#1a1d27"
+                  pointerEvents="none"
+                />
               </g>
-              <circle
-                cx={x}
-                cy={LINE_ENDPOINT_Y}
-                r={3}
-                fill="#1a1d27"
-                pointerEvents="none"
-              />
-            </g>
-            {line.show_label ? (
+            ) : null}
+            {showEndpoints && line.show_label ? (
               <text
                 x={x + size.height / 2 + 12}
                 y={centerY + 4}
@@ -186,5 +190,33 @@ export function LineColumns({
         );
       })}
     </g>
+  );
+}
+
+export function LineEndpointCaption({
+  line,
+  x,
+  y,
+}: {
+  line: Line;
+  x: number;
+  y: number;
+}) {
+  if (!line.show_label) return null;
+  return (
+    <text
+      x={x + 32}
+      y={y + 4}
+      textAnchor="start"
+      fontSize={14}
+      fontWeight={600}
+      fill={trunkColor(line)}
+      stroke="#ffffff"
+      strokeWidth={3}
+      paintOrder="stroke"
+      pointerEvents="none"
+    >
+      {line.name}
+    </text>
   );
 }

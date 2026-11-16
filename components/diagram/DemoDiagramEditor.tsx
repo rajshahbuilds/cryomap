@@ -171,6 +171,7 @@ export function DemoDiagramEditor() {
         component_type: type,
         custom_def_id: null,
         linked_line_id: null,
+        line_endpoint_id: null,
         line_entry_port: null,
         line_exit_port: null,
         label: defaults.label ?? null,
@@ -520,56 +521,63 @@ export function DemoDiagramEditor() {
             <LineColumns lines={view.lines} height={bounds.height} />
             <WireSegments wires={view.lineWires} />
             <WireSegments wires={view.wires} />
-            {view.positioned.map(({ component, x, y }) => {
-              const moving = component.id === draggingId && movePreview?.valid;
-              const drawX = moving ? movePreview.x : x;
-              const drawY = moving ? movePreview.y : y;
-              const size = componentSize(component, null);
-              const box = componentBox(
-                { x: drawX, y: drawY },
-                size,
-                effectiveRotation(component, view.orientation),
-              );
-              return (
-                <g
-                  key={component.id}
-                  onPointerDown={(event: ReactPointerEvent<SVGGElement>) => {
-                    if (event.button !== 0) return;
-                    event.stopPropagation();
-                    setDraggingId(component.id);
-                    setSelectedId(component.id);
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedId(component.id);
-                  }}
-                  className="cursor-move"
-                >
-                  {selectedId === component.id ? (
-                    <rect
-                      x={box.x - box.width / 2 - 7}
-                      y={box.y - box.height / 2 - 7}
-                      width={box.width + 14}
-                      height={box.height + 14}
-                      rx={8}
-                      fill="none"
-                      stroke="#2563eb"
-                      strokeWidth={2}
-                      strokeDasharray="6 4"
-                      pointerEvents="none"
+            {view.positioned
+              .filter((p) => !p.component.line_endpoint_id)
+              .map(({ component, x, y }) => {
+                const moving =
+                  component.id === draggingId && movePreview?.valid;
+                const drawX = moving ? movePreview.x : x;
+                const drawY = moving ? movePreview.y : y;
+                const size = componentSize(component, null);
+                const box = componentBox(
+                  { x: drawX, y: drawY },
+                  size,
+                  effectiveRotation(component, view.orientation),
+                );
+                return (
+                  <g
+                    key={component.id}
+                    onPointerDown={(event: ReactPointerEvent<SVGGElement>) => {
+                      if (event.button !== 0) return;
+                      event.stopPropagation();
+                      setDraggingId(component.id);
+                      setSelectedId(component.id);
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedId(component.id);
+                    }}
+                    className="cursor-move"
+                  >
+                    {selectedId === component.id ? (
+                      <rect
+                        x={box.x - box.width / 2 - 7}
+                        y={box.y - box.height / 2 - 7}
+                        width={box.width + 14}
+                        height={box.height + 14}
+                        rx={8}
+                        fill="none"
+                        stroke="#2563eb"
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        pointerEvents="none"
+                      />
+                    ) : null}
+                    <ComponentSymbol
+                      component={component}
+                      x={drawX}
+                      y={drawY}
+                      orientation={view.orientation}
+                      showCaption={false}
                     />
-                  ) : null}
-                  <ComponentSymbol
-                    component={component}
-                    x={drawX}
-                    y={drawY}
-                    orientation={view.orientation}
-                    showCaption={false}
-                  />
-                  <ComponentCaption component={component} x={drawX} y={drawY} />
-                </g>
-              );
-            })}
+                    <ComponentCaption
+                      component={component}
+                      x={drawX}
+                      y={drawY}
+                    />
+                  </g>
+                );
+              })}
             <WireJunctions points={view.junctions} />
             {placing?.kind === "builtin" && ghost ? (
               <g opacity={ghost.valid ? 0.7 : 0.3} pointerEvents="none">
@@ -585,6 +593,7 @@ export function DemoDiagramEditor() {
                         COMPONENT_LIBRARY[placing.type].defaultFields.value ??
                         null,
                       linked_line_id: null,
+                      line_endpoint_id: null,
                       line_entry_port: null,
                       line_exit_port: null,
                     } as Component

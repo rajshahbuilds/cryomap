@@ -87,6 +87,7 @@ export type Database = {
           line_entry_port: Json | null
           line_exit_port: Json | null
           line_id: string | null
+          line_endpoint_id: string | null
           linked_line_id: string | null
           manufacturer: string | null
           mirrored: boolean
@@ -119,6 +120,7 @@ export type Database = {
           line_entry_port?: Json | null
           line_exit_port?: Json | null
           line_id?: string | null
+          line_endpoint_id?: string | null
           linked_line_id?: string | null
           manufacturer?: string | null
           mirrored?: boolean
@@ -150,6 +152,7 @@ export type Database = {
           line_entry_port?: Json | null
           line_exit_port?: Json | null
           line_id?: string | null
+          line_endpoint_id?: string | null
           linked_line_id?: string | null
           manufacturer?: string | null
           mirrored?: boolean
@@ -191,6 +194,13 @@ export type Database = {
             foreignKeyName: "components_line_id_fkey"
             columns: ["line_id"]
             isOneToOne: false
+            referencedRelation: "lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "components_line_endpoint_id_fkey"
+            columns: ["line_endpoint_id"]
+            isOneToOne: true
             referencedRelation: "lines"
             referencedColumns: ["id"]
           },

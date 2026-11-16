@@ -7,7 +7,7 @@ import { useCanvas } from "@/lib/hooks/useCanvas";
 import { Canvas } from "./Canvas";
 import { AnnotationLayer } from "./AnnotationLayer";
 import { ComponentSymbol } from "./ComponentSymbol";
-import { LineColumns } from "./LineColumns";
+import { LineColumns, LineEndpointCaption } from "./LineColumns";
 import { StagesBands } from "./StagesBands";
 import { WireJunctions, WireSegments } from "./WireSegment";
 
@@ -24,6 +24,7 @@ export function DiagramCanvas({ view }: { view: DiagramView }) {
     >
       <LineColumns
         lines={view.lines}
+        showEndpoints={false}
         height={stagesHeight(view.stages) || undefined}
       />
       <WireSegments wires={view.lineWires} />
@@ -32,6 +33,7 @@ export function DiagramCanvas({ view }: { view: DiagramView }) {
         <ComponentSymbol
           key={component.id}
           component={component}
+          showCaption={!component.line_endpoint_id}
           def={
             component.custom_def_id
               ? (view.customDefById.get(component.custom_def_id) ?? null)
@@ -47,6 +49,21 @@ export function DiagramCanvas({ view }: { view: DiagramView }) {
           }
         />
       ))}
+      {view.positioned
+        .filter((p) => p.component.line_endpoint_id)
+        .map((p) => {
+          const line = view.lines.find(
+            (l) => l.id === p.component.line_endpoint_id,
+          );
+          return line ? (
+            <LineEndpointCaption
+              key={p.component.id}
+              line={line}
+              x={p.x}
+              y={p.y}
+            />
+          ) : null;
+        })}
       {/* Explicit connections on top so they're never hidden behind a symbol. */}
       <WireSegments wires={view.explicitWires} variant="explicit" />
       <WireJunctions points={view.junctions} />

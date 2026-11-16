@@ -145,6 +145,7 @@ export async function recreateComponent(
   return componentsRepo(db).create(
     {
       ...copyInput(component, component.x_abs, component.y_abs),
+      line_endpoint_id: component.line_endpoint_id,
       ...overrides,
     },
     component.id,

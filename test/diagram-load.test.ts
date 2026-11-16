@@ -46,7 +46,9 @@ describe("loadDiagramState", () => {
 
     // End-to-end: loaded state assembles into a positioned, wired view.
     const view = assembleDiagram(state);
-    expect(view.positioned).toHaveLength(1);
+    expect(
+      view.positioned.filter((p) => !p.component.line_endpoint_id),
+    ).toHaveLength(1);
     expect(view.positioned[0].component.id).toBe("c1");
   });
 

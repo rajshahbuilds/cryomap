@@ -323,6 +323,7 @@ export function deleteLineCommand(
     {
       redo: async (db) => {
         await componentsRepo(db).removeByLine(currentId);
+        await componentsRepo(db).removeLineEndpoint(currentId);
         await linesRepo(db).remove(currentId);
       },
       undo: async (db) => {
@@ -344,7 +345,9 @@ export function deleteLineCommand(
         );
         currentId = recreated.id;
         for (const component of components) {
-          await recreateComponent(db, component, { line_id: recreated.id });
+          await recreateComponent(db, component, {
+            line_id: component.line_endpoint_id ? null : recreated.id,
+          });
         }
       },
     },

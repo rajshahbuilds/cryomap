@@ -86,7 +86,9 @@ describe("assembleDiagram positioning", () => {
     const view = assembleDiagram(
       build([makeComponent({ id: "ghost", line_id: null, stage_id: null })]),
     );
-    expect(view.positioned).toHaveLength(0);
+    expect(
+      view.positioned.filter((p) => !p.component.line_endpoint_id),
+    ).toHaveLength(0);
   });
 });
 

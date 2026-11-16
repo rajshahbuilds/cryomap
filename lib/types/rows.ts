@@ -252,6 +252,8 @@ export const componentRowSchema = z.object({
   // clicking that line traces the bench chain driving it. Defaulted so
   // older snapshots still validate.
   linked_line_id: uuid.nullable().default(null),
+  // A real, independently movable I/O component representing a line endpoint.
+  line_endpoint_id: uuid.nullable().default(null),
   line_entry_port: portSchema.nullable().default(null),
   line_exit_port: portSchema.nullable().default(null),
   component_type: componentTypeSchema,
@@ -285,6 +287,7 @@ export const componentCreateSchema = z.object({
   line_id: uuid.nullish(),
   stage_id: uuid.nullish(),
   linked_line_id: uuid.nullish(),
+  line_endpoint_id: uuid.nullish(),
   line_entry_port: portSchema.nullish(),
   line_exit_port: portSchema.nullish(),
   component_type: componentTypeSchema,

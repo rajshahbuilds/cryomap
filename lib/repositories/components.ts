@@ -57,6 +57,10 @@ export const componentsRepo = (db: Db) => ({
     check(await db.from("components").delete().eq("line_id", lineId));
   },
 
+  async removeLineEndpoint(lineId: string): Promise<void> {
+    check(await db.from("components").delete().eq("line_endpoint_id", lineId));
+  },
+
   async removeByStage(stageId: string): Promise<void> {
     check(await db.from("components").delete().eq("stage_id", stageId));
   },
