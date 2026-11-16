@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
 } from "react";
 import type {
   BuiltInComponentType,
@@ -40,7 +41,20 @@ import { zoomPercent } from "@/lib/diagram/status";
 import { Canvas } from "./Canvas";
 import { ComponentCaption, ComponentSymbol } from "./ComponentSymbol";
 import { ComponentPalette, type PaletteSelection } from "./ComponentPalette";
-import { LineColumns } from "./LineColumns";
+import { LineColumns, LineEndpointCaption } from "./LineColumns";
+import {
+  connectionExists,
+  findNearestPort,
+  type PortAnchor,
+} from "@/lib/diagram/connect";
+import {
+  withoutComponents,
+  withoutConnection,
+} from "@/lib/diagram/optimisticState";
+import { useKeyboardShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { WirePropertiesPanel } from "./WirePropertiesPanel";
+import { SignalMatches } from "./SignalMatches";
+import { isSignalPort } from "@/lib/types/signalPorts";
 import { LinesBar } from "./LinesBar";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { StagesBands } from "./StagesBands";
@@ -98,23 +112,77 @@ function nextRotation(rotation: Rotation): Rotation {
   return ((rotation + 90) % 360) as Rotation;
 }
 
+/** Persist a virtual line terminal only when the demo user interacts with it. */
+function withDemoComponent(
+  state: DiagramState,
+  component: Component,
+  patch: Partial<Component> = {},
+): DiagramState {
+  const saved = state.components.find((item) => item.id === component.id);
+  const updated = { ...(saved ?? component), ...patch };
+  return {
+    ...state,
+    components: saved
+      ? state.components.map((item) =>
+          item.id === component.id ? updated : item,
+        )
+      : [...state.components, updated],
+  };
+}
+
 export function DemoDiagramEditor() {
   const idCounter = useRef(0);
   const makeId = useCallback(
     (kind: string) => `demo-${kind}-${++idCounter.current}`,
     [],
   );
-  const [state, setState] = useState<DiagramState>(emptyDemoState);
+  const [history, setHistory] = useState(() => ({
+    past: [] as DiagramState[],
+    present: emptyDemoState(),
+    future: [] as DiagramState[],
+  }));
+  const state = history.present;
+  const setState = useCallback((update: SetStateAction<DiagramState>) => {
+    setHistory((history) => {
+      const next =
+        typeof update === "function" ? update(history.present) : update;
+      return next === history.present
+        ? history
+        : {
+            past: [...history.past.slice(-99), history.present],
+            present: next,
+            future: [],
+          };
+    });
+  }, []);
   const [placing, setPlacing] = useState<PaletteSelection | null>(null);
   const [ghost, setGhost] = useState<ResolvedPlacement | null>(null);
+  const dragStart = useRef<Point | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [movePreview, setMovePreview] = useState<ResolvedPlacement | null>(
     null,
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedWireId, setSelectedWireId] = useState<string | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState<{
+    from: PortAnchor;
+    cursor: Point;
+  } | null>(null);
+  const connectingRef = useRef(connecting);
+  const setConnection = (value: typeof connecting) => {
+    connectingRef.current = value;
+    setConnecting(value);
+  };
 
   const view = useMemo(() => assembleDiagram(state, DEMO_SHEET_ID), [state]);
   const bounds = useMemo(() => diagramBounds(view), [view]);
+  const selectedComponent = view.positioned.find(
+    ({ component }) => component.id === selectedId,
+  )?.component;
+  const selectedWire = state.connections.find(
+    (wire) => wire.id === selectedWireId,
+  );
 
   const obstacles = useCallback(
     (excludeId?: string): Box[] =>
@@ -131,33 +199,55 @@ export function DemoDiagramEditor() {
   );
 
   const resolveFor = useCallback(
-    (point: Point, type: BuiltInComponentType, excludeId?: string) =>
-      resolvePlacement({
+    (point: Point, type: BuiltInComponentType, excludeId?: string) => {
+      const component = view.positioned.find(
+        (p) => p.component.id === excludeId,
+      )?.component;
+      return resolvePlacement({
         point,
         size: COMPONENT_LIBRARY[type].defaultSize,
-        rotation: 0,
-        stages: view.stages,
-        lines: view.lines,
+        rotation: component
+          ? effectiveRotation(component, view.orientation)
+          : 0,
+        stages: component?.line_endpoint_id ? [] : view.stages,
+        lines: component?.line_endpoint_id ? [] : view.lines,
         obstacles: obstacles(excludeId),
-      }),
-    [obstacles, view.lines, view.stages],
+      });
+    },
+    [obstacles, view],
   );
 
   const handlePointerMove = useCallback(
     (point: Point) => {
+      if (connectingRef.current) {
+        const next = { ...connectingRef.current, cursor: point };
+        connectingRef.current = next;
+        setConnecting(next);
+        return;
+      }
       if (placing?.kind === "builtin") {
         setGhost(resolveFor(point, placing.type));
         return;
       }
       if (!draggingId) return;
-      const component = state.components.find((item) => item.id === draggingId);
+      if (
+        dragStart.current &&
+        Math.hypot(
+          point.x - dragStart.current.x,
+          point.y - dragStart.current.y,
+        ) < 3
+      )
+        return;
+      const component = view.positioned.find(
+        ({ component }) => component.id === draggingId,
+      )?.component;
       if (component && component.component_type !== "custom") {
         setMovePreview(
           resolveFor(point, component.component_type, component.id),
         );
       }
     },
-    [draggingId, placing, resolveFor, state.components],
+    [draggingId, placing, resolveFor, view.positioned],
   );
 
   const addComponent = useCallback(
@@ -166,7 +256,7 @@ export function DemoDiagramEditor() {
       const defaults = COMPONENT_LIBRARY[type].defaultFields;
       const component: Component = {
         id: makeId("component"),
-        fridge_id: null,
+        fridge_id: DEMO_FRIDGE_ID,
         sheet_id: DEMO_SHEET_ID,
         component_type: type,
         custom_def_id: null,
@@ -197,12 +287,62 @@ export function DemoDiagramEditor() {
         components: [...current.components, component],
       }));
       setSelectedId(component.id);
+      setSelectedWireId(null);
     },
-    [makeId],
+    [makeId, setState],
   );
 
   const handlePointerUp = useCallback(
     (point: Point) => {
+      const pending = connectingRef.current;
+      if (pending) {
+        connectingRef.current = null;
+        setConnecting(null);
+        const target = findNearestPort(
+          view.portAnchors,
+          point,
+          undefined,
+          pending.from.componentId,
+        );
+        if (target) {
+          const fromComponent = view.positioned.find(
+            (p) => p.component.id === pending.from.componentId,
+          )?.component;
+          const toComponent = view.positioned.find(
+            (p) => p.component.id === target.componentId,
+          )?.component;
+          const id = makeId("wire");
+          if (fromComponent && toComponent)
+            setState((current) => {
+              if (connectionExists(current.connections, pending.from, target))
+                return current;
+              const materialized = withDemoComponent(
+                withDemoComponent(current, fromComponent),
+                toComponent,
+              );
+              return {
+                ...materialized,
+                connections: [
+                  ...materialized.connections,
+                  {
+                    id,
+                    fridge_id: DEMO_FRIDGE_ID,
+                    sheet_id: DEMO_SHEET_ID,
+                    from_component_id: pending.from.componentId,
+                    from_port_side: pending.from.port.side,
+                    from_port_index: pending.from.port.index,
+                    to_component_id: target.componentId,
+                    to_port_side: target.port.side,
+                    to_port_index: target.port.index,
+                    wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
+                    created_at: new Date().toISOString(),
+                  },
+                ],
+              };
+            });
+        }
+        return;
+      }
       if (placing?.kind === "builtin") {
         const placement = resolveFor(point, placing.type);
         if (placement.valid) addComponent(placing.type, placement);
@@ -212,9 +352,25 @@ export function DemoDiagramEditor() {
       }
       if (!draggingId) {
         setSelectedId(null);
+        setSelectedWireId(null);
         return;
       }
-      const component = state.components.find((item) => item.id === draggingId);
+      if (
+        dragStart.current &&
+        Math.hypot(
+          point.x - dragStart.current.x,
+          point.y - dragStart.current.y,
+        ) < 3
+      ) {
+        setDraggingId(null);
+        setMovePreview(null);
+        dragStart.current = null;
+        return;
+      }
+      dragStart.current = null;
+      const component = view.positioned.find(
+        ({ component }) => component.id === draggingId,
+      )?.component;
       if (component && component.component_type !== "custom") {
         const placement = resolveFor(
           point,
@@ -223,18 +379,15 @@ export function DemoDiagramEditor() {
         );
         if (placement.target) {
           const position = targetToPosition(placement.target);
-          setState((current) => ({
-            ...current,
-            components: current.components.map((item) =>
-              item.id === component.id ? { ...item, ...position } : item,
-            ),
-          }));
+          setState((current) =>
+            withDemoComponent(current, component, position),
+          );
         }
       }
       setDraggingId(null);
       setMovePreview(null);
     },
-    [addComponent, draggingId, placing, resolveFor, state.components],
+    [addComponent, draggingId, placing, resolveFor, view, makeId, setState],
   );
 
   const canvas = useCanvas({
@@ -259,7 +412,7 @@ export function DemoDiagramEditor() {
     const preset = STAGE_PRESETS[index] ?? [`Stage ${index + 1}`, ""];
     const stage: Stage = {
       id: makeId("stage"),
-      fridge_id: null,
+      fridge_id: DEMO_FRIDGE_ID,
       sheet_id: DEMO_SHEET_ID,
       name: preset[0],
       nominal_temp: preset[1] || null,
@@ -279,7 +432,7 @@ export function DemoDiagramEditor() {
     const index = state.lines.length;
     const line: Line = {
       id: makeId("line"),
-      fridge_id: null,
+      fridge_id: DEMO_FRIDGE_ID,
       sheet_id: DEMO_SHEET_ID,
       name: `Line ${index + 1}`,
       line_type: null,
@@ -314,52 +467,105 @@ export function DemoDiagramEditor() {
       ),
     }));
 
+  const deleteWire = () => {
+    if (selectedWireId)
+      setState((current) => withoutConnection(current, selectedWireId));
+    setSelectedWireId(null);
+  };
   const deleteSelected = () => {
-    if (!selectedId) return;
-    setState((current) => ({
-      ...current,
-      components: current.components.filter((item) => item.id !== selectedId),
-    }));
+    if (selectedWireId) {
+      deleteWire();
+      return;
+    }
+    if (!selectedComponent || selectedComponent.line_endpoint_id) return;
+    setState((current) => withoutComponents(current, [selectedComponent.id]));
     setSelectedId(null);
   };
-
-  const rotateSelected = () => {
-    if (!selectedId) return;
-    setState((current) => ({
-      ...current,
-      components: current.components.map((item) =>
-        item.id === selectedId
-          ? { ...item, rotation: nextRotation(item.rotation) }
-          : item,
-      ),
-    }));
+  const patchSelected = (patch: Partial<Component>) => {
+    if (selectedComponent)
+      setState((current) =>
+        withDemoComponent(current, selectedComponent, patch),
+      );
   };
-
-  const mirrorSelected = () => {
-    if (!selectedId) return;
-    setState((current) => ({
-      ...current,
-      components: current.components.map((item) =>
-        item.id === selectedId ? { ...item, mirrored: !item.mirrored } : item,
-      ),
-    }));
-  };
-
+  const rotateSelected = () =>
+    selectedComponent &&
+    patchSelected({ rotation: nextRotation(selectedComponent.rotation) });
+  const mirrorSelected = () =>
+    selectedComponent &&
+    patchSelected({ mirrored: !selectedComponent.mirrored });
   const saveSelectedMetadata = (patch: Record<string, unknown>) => {
-    if (!selectedId) return;
-    setState((current) => ({
-      ...current,
-      components: current.components.map((item) =>
-        item.id === selectedId
-          ? {
-              ...item,
-              ...patch,
-              last_edited_at: new Date().toISOString(),
-            }
-          : item,
-      ),
-    }));
+    if (!selectedComponent) return;
+    const lineId = selectedComponent.line_endpoint_id;
+    if (lineId && "line_endpoint_direction" in patch) {
+      const direction = patch.line_endpoint_direction;
+      if (
+        direction === "input" ||
+        direction === "output" ||
+        direction === "bidirectional"
+      )
+        patchLine(lineId, { direction });
+      return;
+    }
+    setState((current) => {
+      const updated = withDemoComponent(current, selectedComponent, {
+        ...patch,
+        last_edited_at: new Date().toISOString(),
+      });
+      const name = typeof patch.label === "string" ? patch.label.trim() : "";
+      return lineId && name
+        ? {
+            ...updated,
+            lines: updated.lines.map((line) =>
+              line.id === lineId ? { ...line, name } : line,
+            ),
+          }
+        : updated;
+    });
   };
+  const deselect = () => {
+    setSelectedId(null);
+    setSelectedWireId(null);
+    setConnection(null);
+    setDraggingId(null);
+    setMovePreview(null);
+    setPlacing(null);
+    setGhost(null);
+  };
+  const undo = () => {
+    deselect();
+    setHistory((h) =>
+      h.past.length
+        ? {
+            past: h.past.slice(0, -1),
+            present: h.past[h.past.length - 1],
+            future: [h.present, ...h.future],
+          }
+        : h,
+    );
+  };
+  const redo = () => {
+    deselect();
+    setHistory((h) =>
+      h.future.length
+        ? {
+            past: [...h.past, h.present],
+            present: h.future[0],
+            future: h.future.slice(1),
+          }
+        : h,
+    );
+  };
+  useKeyboardShortcuts(
+    {
+      delete: deleteSelected,
+      deselect,
+      rotate: rotateSelected,
+      mirror: mirrorSelected,
+      undo,
+      redo,
+    },
+    true,
+  );
 
   const reset = () => {
     if (
@@ -373,7 +579,7 @@ export function DemoDiagramEditor() {
     setGhost(null);
     setDraggingId(null);
     setMovePreview(null);
-    setSelectedId(null);
+    deselect();
     canvas.resetView();
   };
 
@@ -389,6 +595,22 @@ export function DemoDiagramEditor() {
           Refreshing or leaving clears the canvas.
         </span>
         <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={undo}
+            disabled={!history.past.length}
+            className="rounded-md border border-border px-2.5 py-1 text-xs disabled:opacity-40"
+          >
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={redo}
+            disabled={!history.future.length}
+            className="rounded-md border border-border px-2.5 py-1 text-xs disabled:opacity-40"
+          >
+            Redo
+          </button>
           {selectedId ? (
             <>
               <button
@@ -398,13 +620,15 @@ export function DemoDiagramEditor() {
               >
                 Rotate
               </button>
-              <button
-                type="button"
-                onClick={deleteSelected}
-                className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-status-broken hover:bg-background"
-              >
-                Delete
-              </button>
+              {!selectedComponent?.line_endpoint_id ? (
+                <button
+                  type="button"
+                  onClick={deleteSelected}
+                  className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-status-broken hover:bg-background"
+                >
+                  Delete
+                </button>
+              ) : null}
             </>
           ) : null}
           <div className="flex items-center overflow-hidden rounded-md border border-border">
@@ -460,12 +684,19 @@ export function DemoDiagramEditor() {
         onDelete={(id) => {
           setState((current) => ({
             ...current,
+            ...withoutComponents(
+              current,
+              current.components
+                .filter(
+                  (component) =>
+                    component.line_id === id ||
+                    component.line_endpoint_id === id,
+                )
+                .map((component) => component.id),
+            ),
             lines: current.lines
               .filter((line) => line.id !== id)
               .map((line, sort_order) => ({ ...line, sort_order })),
-            components: current.components.filter(
-              (component) => component.line_id !== id,
-            ),
           }));
           setSelectedId(null);
         }}
@@ -489,12 +720,15 @@ export function DemoDiagramEditor() {
         onDelete={(id) => {
           setState((current) => ({
             ...current,
+            ...withoutComponents(
+              current,
+              current.components
+                .filter((component) => component.stage_id === id)
+                .map((component) => component.id),
+            ),
             stages: current.stages
               .filter((stage) => stage.id !== id)
               .map((stage, sort_order) => ({ ...stage, sort_order })),
-            components: current.components.filter(
-              (component) => component.stage_id !== id,
-            ),
           }));
           setSelectedId(null);
         }}
@@ -518,67 +752,168 @@ export function DemoDiagramEditor() {
               <StagesBands stages={view.stages} width={bounds.width} />
             }
           >
-            <LineColumns lines={view.lines} height={bounds.height} />
-            <WireSegments wires={view.lineWires} />
-            <WireSegments wires={view.wires} />
-            {view.positioned
-              .filter((p) => !p.component.line_endpoint_id)
-              .map(({ component, x, y }) => {
-                const moving =
-                  component.id === draggingId && movePreview?.valid;
-                const drawX = moving ? movePreview.x : x;
-                const drawY = moving ? movePreview.y : y;
-                const size = componentSize(component, null);
-                const box = componentBox(
-                  { x: drawX, y: drawY },
-                  size,
-                  effectiveRotation(component, view.orientation),
-                );
-                return (
-                  <g
-                    key={component.id}
-                    onPointerDown={(event: ReactPointerEvent<SVGGElement>) => {
-                      if (event.button !== 0) return;
+            <LineColumns
+              lines={view.lines}
+              height={bounds.height}
+              showEndpoints={false}
+            />
+            <WireSegments
+              wires={view.explicitWires}
+              variant="explicit"
+              layer="hit"
+              selectedKey={selectedWireId}
+              onSelect={(id) => {
+                setSelectedWireId(id);
+                setSelectedId(null);
+              }}
+            />
+            {view.positioned.map(({ component, x, y }) => {
+              const moving = component.id === draggingId && movePreview?.valid;
+              const drawX = moving ? movePreview.x : x;
+              const drawY = moving ? movePreview.y : y;
+              const size = componentSize(component, null);
+              const box = componentBox(
+                { x: drawX, y: drawY },
+                size,
+                effectiveRotation(component, view.orientation),
+              );
+              return (
+                <g
+                  key={component.id}
+                  data-testid={
+                    component.line_endpoint_id
+                      ? `line-endpoint-${component.line_endpoint_id}`
+                      : `component-${component.id}`
+                  }
+                  role="button"
+                  tabIndex={0}
+                  aria-label={
+                    component.line_endpoint_id
+                      ? `${component.label}: ${component.component_type === "output_port" ? "Output" : component.component_type === "bidir_port" ? "Bidirectional" : "Input"} line endpoint`
+                      : component.label ||
+                        COMPONENT_LIBRARY[
+                          component.component_type as BuiltInComponentType
+                        ]?.label
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
                       event.stopPropagation();
-                      setDraggingId(component.id);
                       setSelectedId(component.id);
-                    }}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setSelectedId(component.id);
-                    }}
-                    className="cursor-move"
-                  >
-                    {selectedId === component.id ? (
-                      <rect
-                        x={box.x - box.width / 2 - 7}
-                        y={box.y - box.height / 2 - 7}
-                        width={box.width + 14}
-                        height={box.height + 14}
-                        rx={8}
-                        fill="none"
-                        stroke="#2563eb"
-                        strokeWidth={2}
-                        strokeDasharray="6 4"
-                        pointerEvents="none"
-                      />
-                    ) : null}
-                    <ComponentSymbol
-                      component={component}
+                      setSelectedWireId(null);
+                    }
+                  }}
+                  onPointerEnter={() => setHoveredId(component.id)}
+                  onPointerLeave={() =>
+                    setHoveredId((id) => (id === component.id ? null : id))
+                  }
+                  onPointerDown={(event: ReactPointerEvent<SVGGElement>) => {
+                    if (event.button !== 0) return;
+                    event.stopPropagation();
+                    if (connectingRef.current) return;
+                    dragStart.current = canvas.toLogical(
+                      event.clientX,
+                      event.clientY,
+                    );
+                    setDraggingId(component.id);
+                    setSelectedId(component.id);
+                    setSelectedWireId(null);
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedId(component.id);
+                    setSelectedWireId(null);
+                  }}
+                  className="cursor-move"
+                >
+                  {selectedId === component.id ? (
+                    <rect
+                      x={box.x - box.width / 2 - 7}
+                      y={box.y - box.height / 2 - 7}
+                      width={box.width + 14}
+                      height={box.height + 14}
+                      rx={8}
+                      fill="none"
+                      stroke="#2563eb"
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      pointerEvents="none"
+                    />
+                  ) : null}
+                  <ComponentSymbol
+                    component={component}
+                    x={drawX}
+                    y={drawY}
+                    orientation={view.orientation}
+                    showCaption={false}
+                  />
+                  {component.line_endpoint_id ? (
+                    <LineEndpointCaption
+                      line={view.lines.find(
+                        (line) => line.id === component.line_endpoint_id,
+                      )!}
                       x={drawX}
                       y={drawY}
-                      orientation={view.orientation}
-                      showCaption={false}
                     />
+                  ) : (
                     <ComponentCaption
                       component={component}
                       x={drawX}
                       y={drawY}
                     />
-                  </g>
-                );
-              })}
+                  )}
+                  {hoveredId === component.id
+                    ? view.portAnchors
+                        .filter((anchor) => anchor.componentId === component.id)
+                        .map((anchor) => (
+                          <circle
+                            key={`${anchor.port.side}-${anchor.port.index}`}
+                            data-testid={`port-${component.id}-${anchor.port.side}-${anchor.port.index}`}
+                            role="button"
+                            aria-label={`Connect ${component.label || component.component_type} ${anchor.port.side} ${anchor.port.index + 1}`}
+                            cx={anchor.point.x}
+                            cy={anchor.point.y}
+                            r={6}
+                            fill="#ffffff"
+                            stroke="#2563eb"
+                            strokeWidth={1.5}
+                            style={{ cursor: "crosshair" }}
+                            onPointerDown={(event) => {
+                              if (event.button !== 0) return;
+                              event.preventDefault();
+                              event.stopPropagation();
+                              setSelectedWireId(null);
+                              setDraggingId(null);
+                              setMovePreview(null);
+                              setConnection({
+                                from: anchor,
+                                cursor: anchor.point,
+                              });
+                            }}
+                          />
+                        ))
+                    : null}
+                </g>
+              );
+            })}
+            <WireSegments
+              wires={view.explicitWires}
+              variant="explicit"
+              layer="visual"
+              selectedKey={selectedWireId}
+            />
             <WireJunctions points={view.junctions} />
+            {connecting ? (
+              <line
+                x1={connecting.from.point.x}
+                y1={connecting.from.point.y}
+                x2={connecting.cursor.x}
+                y2={connecting.cursor.y}
+                stroke="#2563eb"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                pointerEvents="none"
+              />
+            ) : null}
             {placing?.kind === "builtin" && ghost ? (
               <g opacity={ghost.valid ? 0.7 : 0.3} pointerEvents="none">
                 <ComponentSymbol
@@ -620,14 +955,33 @@ export function DemoDiagramEditor() {
             </div>
           ) : null}
         </div>
-        {selectedId ? (
+        {selectedWire ? (
+          <WirePropertiesPanel
+            key={selectedWire.id}
+            properties={selectedWire.wire_properties}
+            readOnly={false}
+            endpoints={`${view.positioned.find((p) => p.component.id === selectedWire.from_component_id)?.component.label || "Port"} → ${view.positioned.find((p) => p.component.id === selectedWire.to_component_id)?.component.label || "Port"}`}
+            onDelete={deleteWire}
+            onSave={(patch) =>
+              setState((current) => ({
+                ...current,
+                connections: current.connections.map((wire) =>
+                  wire.id === selectedWire.id
+                    ? {
+                        ...wire,
+                        wire_properties: { ...wire.wire_properties, ...patch },
+                      }
+                    : wire,
+                ),
+              }))
+            }
+          />
+        ) : selectedComponent ? (
           <PropertiesPanel
             key={`component:${selectedId}`}
             selection={{
               kind: "component",
-              component: state.components.find(
-                (component) => component.id === selectedId,
-              )!,
+              component: selectedComponent,
               def: null,
             }}
             readOnly={false}
@@ -635,17 +989,40 @@ export function DemoDiagramEditor() {
             onRotate={rotateSelected}
             onMirror={mirrorSelected}
             lines={state.lines}
+            footer={
+              isSignalPort(selectedComponent) ? (
+                <SignalMatches
+                  state={state}
+                  componentId={selectedComponent.id}
+                  onJump={(id) => {
+                    setSelectedId(id);
+                    setSelectedWireId(null);
+                    const placed = view.positioned.find(
+                      (p) => p.component.id === id,
+                    );
+                    if (placed) canvas.centerOn({ x: placed.x, y: placed.y });
+                  }}
+                />
+              ) : undefined
+            }
           />
         ) : null}
       </div>
 
       <div className="flex items-center gap-4 border-t border-border bg-surface px-4 py-1 text-xs text-muted">
-        <span>{state.components.length} components</span>
+        <span>
+          {
+            state.components.filter((component) => !component.line_endpoint_id)
+              .length
+          }{" "}
+          components
+        </span>
         <span aria-hidden="true" className="text-border">
           |
         </span>
         <span>
-          Scroll or Space+drag to pan · pinch or ⌘/Ctrl+scroll to zoom
+          Drag between ports to wire · Scroll or Space+drag to pan · pinch or
+          ⌘/Ctrl+scroll to zoom
         </span>
         {placing ? (
           <span className="ml-auto font-medium text-status-planned">
