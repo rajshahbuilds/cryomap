@@ -138,3 +138,64 @@ test("demo ports move, wire manually in either direction, edit properties, and u
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await expect(wire).toHaveCount(1);
 });
+
+test("demo stage dividers resize with snapping, minimum height, cancellation, and undo", async ({
+  page,
+}) => {
+  page.setDefaultTimeout(5000);
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.goto("/playground");
+  await page.getByRole("button", { name: "+ Add stage" }).click();
+  await page.getByRole("button", { name: "+ Add stage" }).click();
+  await page.getByRole("button", { name: "+ Add line" }).click();
+  const bands = page.getByTestId("stage-bands").locator("rect[data-canvas-bg]");
+  const strips = page.locator('[data-testid^="stage-resize-strip-"]');
+  const point = async (x: number, y: number) =>
+    page.locator("svg[data-top-inset]").evaluate(
+      (element, point) => {
+        const screen = new DOMPoint(point.x, point.y).matrixTransform(
+          (element as SVGSVGElement).getScreenCTM()!,
+        );
+        return { x: screen.x, y: screen.y };
+      },
+      { x, y },
+    );
+  const startResize = async (index: number, y: number) => {
+    const divider = Number(await strips.nth(index).getAttribute("y")) + 4;
+    const start = await point(180, divider);
+    const target = await point(180, y);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y, { steps: 12 });
+  };
+  await expect(bands.nth(0)).toHaveAttribute("height", "180");
+  await startResize(0, 253);
+  await expect(page.getByTestId("stage-resize-preview")).toHaveAttribute(
+    "y1",
+    "260",
+  );
+  // The live preview does not commit until release.
+  await expect(bands.nth(0)).toHaveAttribute("height", "180");
+  await page.mouse.up();
+  await expect(bands.nth(0)).toHaveAttribute("height", "260");
+  await expect(bands.nth(1)).toHaveAttribute("y", "260");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(bands.nth(0)).toHaveAttribute("height", "180");
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(bands.nth(0)).toHaveAttribute("height", "260");
+  // A later stage uses its own top edge when calculating its new height.
+  await startResize(1, 280);
+  await page.mouse.up();
+  await expect(bands.nth(1)).toHaveAttribute("height", "40");
+  await startResize(0, 320);
+  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("stage-resize-preview")).toHaveCount(0);
+  await page.mouse.up();
+  await expect(bands.nth(0)).toHaveAttribute("height", "260");
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(bands.nth(1)).toHaveAttribute("height", "180");
+  // Resizing and cancellation never create implicit connections.
+  await expect(
+    page.getByRole("button", { name: "Wire", exact: true }),
+  ).toHaveCount(0);
+});
