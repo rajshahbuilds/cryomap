@@ -43,7 +43,6 @@ describe("component library", () => {
       "input_port",
       "output_port",
       "bidir_port",
-      "fridge_port",
     ]);
   });
 
@@ -54,7 +53,7 @@ describe("component library", () => {
   });
 
   it("filters a category by sheet kind", () => {
-    // fridge_port is room-temp only; the generic markers are on both.
+    // All three named ports are available on either kind of sheet.
     expect(componentsByCategory("io", "fridge").map((d) => d.type)).toEqual([
       "input_port",
       "output_port",

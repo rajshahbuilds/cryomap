@@ -141,30 +141,22 @@ describe("PropertiesPanel contexts", () => {
       [...direction.querySelectorAll("option")].map((o) => o.value),
     ).toEqual(["input", "output", "bidirectional"]);
   });
-  it("saves branch port choices independently of other component drafts", async () => {
-    const onSave = vi.fn();
-    const { user } = renderWithProviders(
+  it("has no automatic line entry or exit controls", () => {
+    renderWithProviders(
       <PropertiesPanel
         selection={{
           kind: "component",
-          component: makeComponent({
-            line_id: "line",
-            component_type: "circulator",
-          }),
+          component: makeComponent({ line_id: "line" }),
           def: null,
         }}
         readOnly={false}
-        onSave={onSave}
+        onSave={vi.fn()}
       />,
     );
-    await user.selectOptions(
-      screen.getByLabelText("Connection above"),
-      "left:0",
-    );
-    expect(onSave).toHaveBeenLastCalledWith({
-      line_entry_port: { side: "left", index: 0 },
-    });
+    expect(screen.queryByLabelText("Connection above")).toBeNull();
+    expect(screen.queryByLabelText("Connection below")).toBeNull();
   });
+
   it("updates direction immediately and reflects undo", async () => {
     const onSave = vi.fn();
     const line = makeLine({ direction: "input" });
@@ -195,7 +187,7 @@ describe("PropertiesPanel contexts", () => {
     expect(screen.getByLabelText("Direction")).toHaveValue("input");
   });
 
-  it("disables port choices in read-only mode", () => {
+  it("has no automatic connection controls in read-only mode", () => {
     renderWithProviders(
       <PropertiesPanel
         selection={{
@@ -207,8 +199,8 @@ describe("PropertiesPanel contexts", () => {
         onSave={vi.fn()}
       />,
     );
-    expect(screen.getByLabelText("Connection above")).toBeDisabled();
-    expect(screen.getByLabelText("Connection below")).toBeDisabled();
+    expect(screen.queryByLabelText("Connection above")).toBeNull();
+    expect(screen.queryByLabelText("Connection below")).toBeNull();
   });
 
   it("shows fridge fields", () => {
@@ -263,59 +255,47 @@ describe("PropertiesPanel editing", () => {
   });
 });
 
-describe("PropertiesPanel fridge-port linking", () => {
-  it("shows a linked-line picker only for a fridge_port, from the given lines", () => {
-    renderWithProviders(
-      <PropertiesPanel
-        selection={{
-          kind: "component",
-          component: makeComponent({ id: "p", component_type: "fridge_port" }),
-          def: null,
-        }}
-        readOnly={false}
-        onSave={vi.fn()}
-        lines={[makeLine({ id: "l1", name: "2B" })]}
-      />,
-    );
-    const picker = screen.getByLabelText("Linked fridge line");
-    expect(picker).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: "2B" })).toBeInTheDocument();
-  });
+describe("PropertiesPanel named signal ports", () => {
+  it.each(["input_port", "output_port", "bidir_port"] as const)(
+    "uses Name for %s without a linked-line picker",
+    (component_type) => {
+      renderWithProviders(
+        <PropertiesPanel
+          selection={{
+            kind: "component",
+            component: makeComponent({ component_type, label: "Q1" }),
+            def: null,
+          }}
+          readOnly={false}
+          onSave={vi.fn()}
+        />,
+      );
+      expect(screen.getByLabelText("Name")).toHaveValue("Q1");
+      expect(screen.queryByLabelText("Linked fridge line")).toBeNull();
+    },
+  );
 
-  it("has no linked-line picker for a non-port component", () => {
-    renderWithProviders(
-      <PropertiesPanel
-        selection={{
-          kind: "component",
-          component: makeComponent({ id: "c", component_type: "attenuator" }),
-          def: null,
-        }}
-        readOnly={false}
-        onSave={vi.fn()}
-        lines={[makeLine({ id: "l1", name: "2B" })]}
-      />,
-    );
-    expect(screen.queryByLabelText("Linked fridge line")).toBeNull();
-  });
-
-  it("saves the picked line id (and clears to null via the none option)", async () => {
+  it("saves a port name in the existing label field", async () => {
     const onSave = vi.fn();
     const { user } = renderWithProviders(
       <PropertiesPanel
         selection={{
           kind: "component",
-          component: makeComponent({ id: "p", component_type: "fridge_port" }),
+          component: makeComponent({
+            component_type: "output_port",
+            label: "",
+          }),
           def: null,
         }}
         readOnly={false}
         onSave={onSave}
-        lines={[makeLine({ id: "l1", name: "2B" })]}
       />,
     );
-    await user.selectOptions(screen.getByLabelText("Linked fridge line"), "l1");
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls.at(-1)![0]).toMatchObject({
-      linked_line_id: "l1",
-    });
+    await user.type(screen.getByLabelText("Name"), "Q1 drive");
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ label: "Q1 drive" }),
+      ),
+    );
   });
 });

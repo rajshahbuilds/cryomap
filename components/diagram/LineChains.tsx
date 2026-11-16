@@ -39,8 +39,8 @@ export function LineChains({
       </h3>
       {chains.length === 0 ? (
         <p className="text-xs text-muted">
-          No bench chain links to this line yet. Add a Fridge Port on a
-          room-temp sheet and link it here.
+          No other port shares this line’s name. Name an Input, Output, or
+          Bidirectional port “{lineName}” to identify the same signal.
         </p>
       ) : (
         chains.map((chain) => {

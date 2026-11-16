@@ -22,8 +22,16 @@ hardware changes.
   line at each stage.
  - **Room-temperature sheets**: draw the bench instrumentation (sources, mixers,
   amplifiers, switches) that drives each fridge line.
--  **Signal tracing**: link a room-temperature chain to a named fridge line and
-  follow a signal from the bench all the way down into the cryostat.
+- **Named signal ports**: use Input, Output, and Bidirectional ports on any
+  page. Ports with the same name belong to the same signal within a fridge,
+  including a line’s named port. Matching is case-sensitive and ignores spaces
+  at the ends; unnamed ports remain independent. The port sidebar lists matching
+  ports and lets you jump to their pages. Physical wires are always drawn manually by dragging between component ports.
+  Placing or moving a component onto a line never adds a wire. Select a wire and
+  use Delete wire (or Delete/Backspace) to remove it; undo restores it.
+- **Signal tracing**: follow a named signal from a room-temperature chain down
+  through the cryostat. Older Fridge Ports open as Input ports using their
+  previously linked line’s name.
 -  **A component vocabulary** for the real parts: attenuators, filters, isolators,
   circulators, HEMT/room-temp amplifiers, DC blocks, thermometers, mixers,
   switches, and your own reusable custom definitions.

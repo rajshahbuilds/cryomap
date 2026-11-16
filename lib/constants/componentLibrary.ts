@@ -402,7 +402,7 @@ export const COMPONENT_LIBRARY: Record<
     sheetKinds: ROOM_TEMP,
     label: "Fridge Port",
     category: "io",
-    // The bench side; the link to a fridge line is wired up in a later phase.
+    // Deprecated: retained only to read historical snapshots.
     ports: SINGLE_LEFT,
     defaultSize: { width: 72, height: 56 },
     allowedLineTypes: null,
@@ -426,6 +426,7 @@ export function componentsByCategory(
 ): BuiltInComponentDefinition[] {
   return COMPONENT_DEFINITIONS.filter(
     (def) =>
+      def.type !== "fridge_port" && // Historical snapshots only; not placeable.
       def.category === category &&
       (kind == null || def.sheetKinds.includes(kind)),
   );

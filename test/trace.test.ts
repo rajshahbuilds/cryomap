@@ -18,12 +18,12 @@ import {
 
 const RT = "rt-sheet";
 
-function port(id: string, linkedLineId: string | null): Component {
+function port(id: string, name: string | null): Component {
   return makeComponent({
     id,
     sheet_id: RT,
-    component_type: "fridge_port",
-    linked_line_id: linkedLineId,
+    component_type: "input_port",
+    label: name,
     free_floating: true,
     x_abs: 0,
     y_abs: 0,
@@ -74,7 +74,7 @@ describe("traceChain", () => {
     );
     const chain = traceChain(v, { componentId: "P" });
     expect(chain.hops.map((c) => c.id)).toEqual(["A", "B"]);
-    expect(chain.lineId).toBe("L1");
+    expect(chain.lineId).toBeNull();
     expect(chain.oriented).toBe(true);
   });
 
@@ -125,7 +125,7 @@ describe("traceChain", () => {
     const v = view([port("P", "L1")], []);
     const chain = traceChain(v, { componentId: "P" });
     expect(chain.hops).toEqual([]);
-    expect(chain.lineId).toBe("L1");
+    expect(chain.lineId).toBeNull();
     expect(chain.oriented).toBe(true);
   });
 });
@@ -137,7 +137,10 @@ describe("chainsByLine", () => {
   ): DiagramState => ({
     sheets: [makeSheet({ id: RT, kind: "room_temp" })],
     stages: [],
-    lines: [],
+    lines: [
+      makeLine({ id: "L1", name: "L1", sheet_id: "fridge-sheet" }),
+      makeLine({ id: "L2", name: "L2", sheet_id: "fridge-sheet" }),
+    ],
     components,
     customDefs: [],
     connections,
@@ -175,7 +178,10 @@ describe("tracedChainsForLine", () => {
   ): DiagramState => ({
     sheets: [makeSheet({ id: RT, kind: "room_temp" })],
     stages: [],
-    lines: [],
+    lines: [
+      makeLine({ id: "L1", name: "L1", sheet_id: "fridge-sheet" }),
+      makeLine({ id: "L2", name: "L2", sheet_id: "fridge-sheet" }),
+    ],
     components,
     customDefs: [],
     connections,
@@ -269,13 +275,61 @@ describe("lineComponents", () => {
       { ...onLine("sample", "st4", 80), component_type: "dut" },
       onLine("disconnected", "stmxc", 80),
       box("Src", "Src"),
-      port("P", "L1"),
+      port("P", "2B"),
     ]);
     s.sheets.push(makeSheet({ id: RT, kind: "room_temp", sort_order: 1 }));
-    s.connections = [wire("Src", "P")];
+    s.connections = [
+      wire("Src", "P"),
+      makeConnection({
+        sheet_id: FRIDGE,
+        from_component_id: "L1",
+        from_port_side: "left",
+        to_component_id: "warm",
+        to_port_side: "left",
+      }),
+      makeConnection({
+        sheet_id: FRIDGE,
+        from_component_id: "warm",
+        from_port_side: "right",
+        to_component_id: "sample",
+        to_port_side: "top",
+      }),
+    ];
     expect(
       tracedChainsForLine(s, "L1")[0].fridge.map((component) => component.id),
     ).toEqual(["warm", "sample"]);
+  });
+
+  it("follows a manually wired line terminal to a floating component without an automatic entry wire", () => {
+    const s = state([
+      { ...onLine("floating", "st4", 80), line_id: null, free_floating: true },
+      makeComponent({
+        id: "terminal",
+        sheet_id: FRIDGE,
+        component_type: "input_port",
+        line_endpoint_id: "L1",
+        free_floating: true,
+        x_abs: 200,
+        y_abs: -48,
+      }),
+      box("Src", "Src"),
+      port("P", "2B"),
+    ]);
+    s.sheets.push(makeSheet({ id: RT, kind: "room_temp", sort_order: 1 }));
+    s.connections = [
+      wire("Src", "P"),
+      makeConnection({
+        sheet_id: FRIDGE,
+        from_component_id: "terminal",
+        from_port_side: "left",
+        to_component_id: "floating",
+        to_port_side: "left",
+      }),
+    ];
+    expect(assembleDiagram(s, FRIDGE).lineWires).toEqual([]);
+    expect(tracedChainsForLine(s, "L1")[0].fridge.map((c) => c.id)).toEqual([
+      "floating",
+    ]);
   });
 
   it("continues a bench chain down the linked line's stages", () => {
@@ -284,13 +338,29 @@ describe("lineComponents", () => {
       onLine("attMXC", "stmxc"),
       // A room-temp bench (sheet RT) driving the line via a linked port.
       box("Src", "Src"),
-      port("P", "L1"),
+      port("P", "2B"),
     ]);
     s.sheets = [
       makeSheet({ id: FRIDGE, kind: "fridge", sort_order: 0 }),
       makeSheet({ id: RT, kind: "room_temp", sort_order: 1 }),
     ];
-    s.connections = [wire("Src", "P")];
+    s.connections = [
+      wire("Src", "P"),
+      makeConnection({
+        sheet_id: FRIDGE,
+        from_component_id: "L1",
+        from_port_side: "left",
+        to_component_id: "att4K",
+        to_port_side: "left",
+      }),
+      makeConnection({
+        sheet_id: FRIDGE,
+        from_component_id: "att4K",
+        from_port_side: "right",
+        to_component_id: "attMXC",
+        to_port_side: "left",
+      }),
+    ];
     const [chain] = tracedChainsForLine(s, "L1");
     expect(chain.hops.map((c) => c.id)).toEqual(["Src"]);
     expect(chain.fridge.map((c) => c.id)).toEqual(["att4K", "attMXC"]);

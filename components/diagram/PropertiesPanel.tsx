@@ -5,7 +5,7 @@ import type { Component, CustomComponentDef, Fridge, Line } from "@/lib/types";
 import { DIRECTIONS, ENTITY_STATUSES, LINE_TYPES } from "@/lib/types";
 import { getLineTypeLabel } from "@/lib/constants/lineTypes";
 import { getComponentDefinition } from "@/lib/constants/componentLibrary";
-import { ComponentLinePorts } from "./ComponentLinePorts";
+import { isSignalPort } from "@/lib/types/signalPorts";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 
 export type PanelSelection =
@@ -69,25 +69,15 @@ type Values = Record<string, string | boolean>;
 /** Custom-component extra fields are namespaced so they collect into a record. */
 const EXTRA = "__extra__";
 
-function fieldsFor(selection: PanelSelection, lines: Line[]): Field[] {
+function fieldsFor(selection: PanelSelection): Field[] {
   if (selection.kind === "component") {
     const extraKeys = selection.def?.extra_field_keys ?? [];
-    // A fridge_port links to a fridge line: a picker over the fridge's
-    // lines. The "—" none option (rendered for every select) unlinks it.
-    const linkField: Field[] =
-      selection.component.component_type === "fridge_port"
-        ? [
-            {
-              key: "linked_line_id",
-              label: "Linked fridge line",
-              kind: "select",
-              options: lines.map((l) => ({ value: l.id, label: l.name })),
-            },
-          ]
-        : [];
     return [
-      ...COMPONENT_FIELDS,
-      ...linkField,
+      ...COMPONENT_FIELDS.map((field) =>
+        field.key === "label" && isSignalPort(selection.component)
+          ? { ...field, label: "Name" }
+          : field,
+      ),
       ...extraKeys.map((k): Field => ({
         key: `${EXTRA}${k}`,
         label: k,
@@ -162,7 +152,7 @@ interface PropertiesPanelProps {
   onRotate?: () => void;
   /** Mirror (horizontally flip) the selected component. */
   onMirror?: () => void;
-  /** The fridge's lines, for a `fridge_port`'s linked-line picker. */
+  /** Lines supply the direction of the selected line terminal. */
   lines?: Line[];
   /** Extra content below the fields — e.g. a line's traced signal chains. */
   footer?: ReactNode;
@@ -182,7 +172,7 @@ export function PropertiesPanel({
   lines = [],
   footer,
 }: PropertiesPanelProps) {
-  const fields = fieldsFor(selection, lines);
+  const fields = fieldsFor(selection);
   const entity = entityFor(selection);
 
   // Local state initializes once per mount. The editor remounts this panel
@@ -348,23 +338,6 @@ export function PropertiesPanel({
             )}
           </label>
         ))}
-
-        {selection.kind === "component" &&
-        selection.component.line_id &&
-        !selection.component.free_floating ? (
-          <ComponentLinePorts
-            key={JSON.stringify([
-              selection.component.line_entry_port,
-              selection.component.line_exit_port,
-              selection.component.rotation,
-              selection.component.mirrored,
-            ])}
-            component={selection.component}
-            def={selection.def}
-            readOnly={readOnly}
-            onSave={onSave}
-          />
-        ) : null}
 
         {selection.kind === "component" &&
         selection.component.last_edited_at ? (

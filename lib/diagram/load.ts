@@ -1,3 +1,4 @@
+import { normalizeSignalPorts } from "@/lib/types/signalPorts";
 import type { DiagramState } from "@/lib/types";
 import {
   annotationsRepo,
@@ -45,7 +46,7 @@ export async function loadDiagramState(
     sheets,
     stages,
     lines,
-    components,
+    components: normalizeSignalPorts(components, lines),
     customDefs,
     connections,
     annotations,

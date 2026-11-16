@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Port } from "@/lib/types";
 import {
-  implicitWires,
   orthogonalPath,
   orthogonalRouteAvoiding,
   pruneCollinear,
@@ -12,7 +11,6 @@ import {
   wirePath,
   wirePathsWithHops,
   type ExplicitWire,
-  type PlacedComponent,
 } from "@/lib/diagram/wires";
 import type { Box } from "@/lib/diagram/placement";
 
@@ -63,62 +61,6 @@ describe("orthogonalPath", () => {
     expect(
       orthogonalPath({ x: 200, y: 0 }, { x: 260, y: 100 }, "left", "top"),
     ).toBe("M 200 0 L 184 0 L 184 84 L 260 84 L 260 100");
-  });
-});
-
-describe("implicitWires", () => {
-  const placed: PlacedComponent[] = [
-    { id: "c2", lineId: "A", x: 100, y: 200 },
-    { id: "c0", lineId: "A", x: 100, y: 50 },
-    { id: "c1", lineId: "A", x: 100, y: 120 },
-  ];
-
-  it("connects adjacent components down a line in y order", () => {
-    const wires = implicitWires(placed);
-    expect(wires.map((w) => w.key)).toEqual(["c0-c1", "c1-c2"]);
-    expect(wires[0].from).toEqual({ x: 100, y: 50 });
-    expect(wires[0].to).toEqual({ x: 100, y: 120 });
-  });
-
-  it("never connects components across different lines", () => {
-    const wires = implicitWires([
-      { id: "a", lineId: "A", x: 0, y: 0 },
-      { id: "b", lineId: "B", x: 50, y: 0 },
-    ]);
-    expect(wires).toHaveLength(0);
-  });
-
-  it("produces no wire for a lone component", () => {
-    expect(implicitWires([{ id: "a", lineId: "A", x: 0, y: 0 }])).toHaveLength(
-      0,
-    );
-  });
-
-  it("routes a straight vertical when anchors share an x", () => {
-    const [wire] = implicitWires([
-      { id: "a", lineId: "A", x: 100, y: 0 },
-      { id: "b", lineId: "A", x: 100, y: 100 },
-    ]);
-    expect(wire.points).toEqual([
-      { x: 100, y: 0 },
-      { x: 100, y: 100 },
-    ]);
-    expect(wire.path).toBe("M 100 0 L 100 100");
-  });
-
-  it("jogs orthogonally (no diagonal) when anchors differ in x", () => {
-    const [wire] = implicitWires([
-      { id: "a", lineId: "A", x: 100, y: 0 },
-      { id: "b", lineId: "A", x: 160, y: 100 },
-    ]);
-    // Z at the vertical midpoint (y=50) — only horizontal/vertical segments.
-    expect(wire.points).toEqual([
-      { x: 100, y: 0 },
-      { x: 100, y: 50 },
-      { x: 160, y: 50 },
-      { x: 160, y: 100 },
-    ]);
-    expect(wire.path).toBe("M 100 0 L 100 50 L 160 50 L 160 100");
   });
 });
 
