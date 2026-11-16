@@ -174,13 +174,3 @@ throwaway databases, including existing connections and historical snapshots.
 Use `supabase stop` to stop services while preserving their data. No hosted
 project linking, production credentials, or production database changes are
 needed for this workflow.
-
-## Known baseline issue
-
-The authenticated editor currently emits a React hydration warning on Node 22:
-the server initially renders the offline indicator while the browser renders
-online. `useOnline` reads `navigator.onLine` during initialization; Node provides
-a `navigator` object without that browser property. React recovers on the
-client. Local sign-in, editing, check-in, and persistence after reload were
-verified despite this warning. This existing application issue is recorded
-separately from the wire feature and local setup changes.

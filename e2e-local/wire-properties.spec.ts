@@ -10,6 +10,15 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
   page,
   context,
 }, testInfo) => {
+  const hydrationErrors: string[] = [];
+  const recordHydrationError = (message: string) => {
+    if (/hydration|server rendered HTML/i.test(message))
+      hydrationErrors.push(message);
+  };
+  page.on("pageerror", (error) => recordHydrationError(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error") recordHydrationError(message.text());
+  });
   const url = process.env.CRYOMAP_TEST_SUPABASE_URL!;
   if (url !== "http://127.0.0.1:54321")
     throw new Error("Refusing to test against a non-local database.");
@@ -432,6 +441,7 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
       expect(bytes.length).toBeGreaterThan(1000);
       expect(bytes.subarray(0, header.length / 2).toString("hex")).toBe(header);
     }
+    expect(hydrationErrors).toEqual([]);
   } finally {
     check(await db.from("workspaces").delete().eq("id", workspace.id));
   }
