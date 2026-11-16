@@ -24,6 +24,7 @@ import type {
 import type { Point } from "@/lib/diagram/camera";
 import { assembleDiagram } from "@/lib/diagram/assemble";
 import { diagramBounds } from "@/lib/diagram/bounds";
+import { resizeStageHeight } from "@/lib/diagram/stageOps";
 import {
   componentBox,
   resolvePlacement,
@@ -158,6 +159,8 @@ export function DemoDiagramEditor() {
   const [placing, setPlacing] = useState<PaletteSelection | null>(null);
   const [ghost, setGhost] = useState<ResolvedPlacement | null>(null);
   const dragStart = useRef<Point | null>(null);
+  const resizing = useRef<{ stageId: string; bandTop: number } | null>(null);
+  const [resizePreview, setResizePreview] = useState<number | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [movePreview, setMovePreview] = useState<ResolvedPlacement | null>(
     null,
@@ -219,6 +222,11 @@ export function DemoDiagramEditor() {
 
   const handlePointerMove = useCallback(
     (point: Point) => {
+      if (resizing.current) {
+        const { bandTop } = resizing.current;
+        setResizePreview(bandTop + resizeStageHeight(bandTop, point.y));
+        return;
+      }
       if (connectingRef.current) {
         const next = { ...connectingRef.current, cursor: point };
         connectingRef.current = next;
@@ -294,6 +302,23 @@ export function DemoDiagramEditor() {
 
   const handlePointerUp = useCallback(
     (point: Point) => {
+      if (resizing.current) {
+        const { stageId, bandTop } = resizing.current;
+        resizing.current = null;
+        setResizePreview(null);
+        const height = resizeStageHeight(bandTop, point.y);
+        setState((current) => {
+          const stage = current.stages.find((stage) => stage.id === stageId);
+          if (!stage || stage.height_px === height) return current;
+          return {
+            ...current,
+            stages: current.stages.map((stage) =>
+              stage.id === stageId ? { ...stage, height_px: height } : stage,
+            ),
+          };
+        });
+        return;
+      }
       const pending = connectingRef.current;
       if (pending) {
         connectingRef.current = null;
@@ -523,6 +548,9 @@ export function DemoDiagramEditor() {
     });
   };
   const deselect = () => {
+    resizing.current = null;
+    setResizePreview(null);
+    dragStart.current = null;
     setSelectedId(null);
     setSelectedWireId(null);
     setConnection(null);
@@ -749,9 +777,29 @@ export function DemoDiagramEditor() {
             width={bounds.width}
             height={bounds.height}
             background={
-              <StagesBands stages={view.stages} width={bounds.width} />
+              <StagesBands
+                stages={view.stages}
+                width={bounds.width}
+                onStartResize={(stageId, bandTop) => {
+                  deselect();
+                  resizing.current = { stageId, bandTop };
+                }}
+              />
             }
           >
+            {resizePreview !== null ? (
+              <line
+                data-testid="stage-resize-preview"
+                x1={0}
+                y1={resizePreview}
+                x2={bounds.width}
+                y2={resizePreview}
+                stroke="#2563eb"
+                strokeWidth={2}
+                strokeDasharray="6 4"
+                pointerEvents="none"
+              />
+            ) : null}
             <LineColumns
               lines={view.lines}
               height={bounds.height}
