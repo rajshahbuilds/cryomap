@@ -61,7 +61,7 @@ const connection = makeConnection({
 const state = () =>
   makeDiagramState({
     sheets: [sheet],
-    lines: [line],
+    lines: [{ ...line, entry_wire_properties: properties }],
     components: [a, b],
     connections: [connection],
     wireSegmentProperties: [segment],
@@ -73,12 +73,16 @@ describe("wire properties", () => {
     expect(DEFAULT_WIRE_PROPERTIES.show_label).toBe(false);
     expect(DEFAULT_WIRE_PROPERTIES.datasheet_url).toBeNull();
     const legacy = JSON.parse(JSON.stringify(serializeSnapshot(state())));
+    delete legacy.lines[0].entry_wire_properties;
     delete legacy.wire_segment_properties;
     delete legacy.connections[0].wire_properties;
     for (const restored of [
       snapshotToState(legacy),
       snapshotToState(parseSnapshot(legacy)),
     ]) {
+      expect(restored.lines[0].entry_wire_properties).toEqual(
+        DEFAULT_WIRE_PROPERTIES,
+      );
       expect(restored.wireSegmentProperties).toEqual([]);
       expect(restored.connections[0].wire_properties).toEqual(
         DEFAULT_WIRE_PROPERTIES,
@@ -116,16 +120,18 @@ describe("wire properties", () => {
   );
   it("defaults existing wire payloads without a datasheet to null", () => {
     const legacy = JSON.parse(JSON.stringify(serializeSnapshot(state())));
+    delete legacy.lines[0].entry_wire_properties.datasheet_url;
     delete legacy.connections[0].wire_properties.datasheet_url;
     delete legacy.wire_segment_properties[0].wire_properties.datasheet_url;
     const restored = snapshotToState(parseSnapshot(legacy));
+    expect(restored.lines[0].entry_wire_properties.datasheet_url).toBeNull();
     expect(restored.connections[0].wire_properties.datasheet_url).toBeNull();
     expect(
       restored.wireSegmentProperties[0].wire_properties.datasheet_url,
     ).toBeNull();
     expect(restored.connections[0].wire_properties.label).toBe("Sensor A");
   });
-  it("round-trips both wire kinds through JSON snapshots", () => {
+  it("round-trips all three wire kinds through JSON snapshots", () => {
     const restored = snapshotToState(
       parseSnapshot(JSON.parse(JSON.stringify(serializeSnapshot(state())))),
     );
@@ -183,6 +189,7 @@ describe("wire properties", () => {
     expect(
       loaded.components.find((c) => c.line_exit_port)?.line_exit_port,
     ).toEqual(a.line_exit_port);
+    expect(loaded.lines[0].entry_wire_properties).toEqual(properties);
     expect(loaded.connections[0].wire_properties).toEqual(properties);
     const fresh = loaded.wireSegmentProperties[0];
     expect(fresh.wire_properties).toEqual(properties);
@@ -216,6 +223,7 @@ describe("wire properties", () => {
     expect(
       loaded.components.find((c) => c.line_exit_port)?.line_exit_port,
     ).toEqual(a.line_exit_port);
+    expect(loaded.lines[0].entry_wire_properties).toEqual(properties);
     expect(loaded.connections[0].wire_properties).toEqual(properties);
   });
 });

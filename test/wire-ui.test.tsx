@@ -78,6 +78,31 @@ describe("wire properties panel", () => {
       { show_label: true },
     ]);
   });
+  it("responds to visibility toggles before queued saves finish and reflects undo", async () => {
+    const save = vi.fn();
+    const { user, rerender } = renderWithProviders(
+      <WirePropertiesPanel {...defaults} onSave={save} />,
+    );
+    const toggle = screen.getByLabelText("Show label on diagram");
+    await user.click(toggle);
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    expect(toggle).not.toBeChecked();
+    expect(save.mock.calls.map(([patch]) => patch)).toEqual([
+      { show_label: true },
+      { show_label: false },
+    ]);
+    rerender(
+      <WirePropertiesPanel
+        {...defaults}
+        properties={{ ...defaults.properties, show_label: true }}
+        onSave={save}
+      />,
+    );
+    expect(toggle).toBeChecked();
+    rerender(<WirePropertiesPanel {...defaults} onSave={save} />);
+    expect(toggle).not.toBeChecked();
+  });
   it("validates measurement values and retains their units", async () => {
     const save = vi.fn();
     const { user } = renderWithProviders(

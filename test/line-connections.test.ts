@@ -122,6 +122,27 @@ describe("line endpoint wiring", () => {
     expect(view.wires[0].to).toEqual({ x: lineColumnX(0), y: 240 });
     expect(view.wires[0].toComponentId).toBe(sample.id);
   });
+  it("attaches the same editable entry properties when its first component changes", () => {
+    const entry = {
+      ...line.entry_wire_properties,
+      construction: "coaxial" as const,
+      label: "Entry feed",
+      datasheet_url: "https://example.com/feed.pdf",
+    };
+    const configured = {
+      ...state(),
+      lines: [{ ...line, entry_wire_properties: entry }],
+    };
+    const original = assembleDiagram(configured).lineWires[0];
+    const changed = assembleDiagram({
+      ...configured,
+      components: [sample, bottom],
+    }).lineWires[0];
+    expect(original.reference).toEqual({ kind: "line_entry", id: line.id });
+    expect(original.properties).toEqual(entry);
+    expect(changed.properties).toEqual(entry);
+    expect(changed.toComponentId).toBe(sample.id);
+  });
   it("leaves an empty line with just its endpoint", () => {
     const view = assembleDiagram({ ...state(), components: [] });
     expect(view.lineWires).toEqual([]);

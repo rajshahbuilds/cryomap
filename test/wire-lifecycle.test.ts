@@ -10,6 +10,7 @@ import {
 import {
   componentsRepo,
   connectionsRepo,
+  linesRepo,
   wireSegmentPropertiesRepo,
   type Db,
 } from "@/lib/repositories";
@@ -54,6 +55,7 @@ function fixture() {
     label: "A",
     length: { value: 1, unit: "m" },
   });
+  line.entry_wire_properties = props;
   const segment: WireSegmentProperties = {
     id: crypto.randomUUID(),
     fridge_id: sheet.fridge_id,
@@ -93,6 +95,42 @@ function fixture() {
   };
 }
 describe("wire edit lifecycle", () => {
+  it("edits the entry wire optimistically and merges rapid patches with undo and redo", async () => {
+    const f = fixture();
+    const initial = await loadDiagramState(f.db, f.sheet.fridge_id);
+    const ref: WireReference = { kind: "line_entry", id: f.line.id };
+    const construction = wirePropertiesCommand(ref, f.props, {
+      construction: "coaxial",
+    });
+    const label = wirePropertiesCommand(ref, f.props, { label: "Entry feed" });
+    const optimistic = construction.optimisticRedo!(initial);
+    expect(optimistic.lines[0].entry_wire_properties.construction).toBe(
+      "coaxial",
+    );
+    expect(initial.lines[0].entry_wire_properties).toEqual(f.props);
+    await construction.redo(f.db);
+    await label.redo(f.db);
+    expect(
+      (await linesRepo(f.db).get(f.line.id)).entry_wire_properties,
+    ).toMatchObject({ construction: "coaxial", label: "Entry feed" });
+    await label.undo(f.db);
+    expect(
+      (await linesRepo(f.db).get(f.line.id)).entry_wire_properties,
+    ).toMatchObject({ construction: "coaxial", label: "A" });
+    await construction.undo(f.db);
+    expect(
+      (await linesRepo(f.db).get(f.line.id)).entry_wire_properties,
+    ).toEqual(f.props);
+    expect(
+      construction.optimisticUndo!(optimistic).lines[0].entry_wire_properties,
+    ).toEqual(f.props);
+    await construction.redo(f.db);
+    await label.redo(f.db);
+    expect(
+      (await linesRepo(f.db).get(f.line.id)).entry_wire_properties.label,
+    ).toBe("Entry feed");
+  });
+
   it("updates the canvas immediately and rolls the first edit back without a phantom row", async () => {
     const f = fixture();
     await wireSegmentPropertiesRepo(f.db).remove(f.segment.id);
@@ -209,6 +247,9 @@ describe("wire edit lifecycle", () => {
       ).toEqual([]);
       await deletion.undo(f.db);
       expect(
+        (await linesRepo(f.db).get(f.line.id)).entry_wire_properties,
+      ).toEqual(f.props);
+      expect(
         (await connectionsRepo(f.db).get(f.connection.id)).wire_properties
           .label,
       ).toBe("Edited");
@@ -225,6 +266,9 @@ describe("wire edit lifecycle", () => {
       await edit.redo(f.db);
       await deletion.redo(f.db);
       await deletion.undo(f.db);
+      expect(
+        (await linesRepo(f.db).get(f.line.id)).entry_wire_properties,
+      ).toEqual(f.props);
       expect(
         (await connectionsRepo(f.db).get(f.connection.id)).wire_properties
           .label,

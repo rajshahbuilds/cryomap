@@ -8,6 +8,7 @@ import {
 } from "@/lib/types";
 import {
   connectionsRepo,
+  linesRepo,
   wireSegmentPropertiesRepo,
   type Db,
 } from "@/lib/repositories";
@@ -35,6 +36,21 @@ export function wirePropertiesCommand(
     state: DiagramState,
     values: Partial<WireProperties> | null,
   ): DiagramState => {
+    if (target.kind === "line_entry")
+      return {
+        ...state,
+        lines: state.lines.map((line) =>
+          line.id === target.id
+            ? {
+                ...line,
+                entry_wire_properties: {
+                  ...(line.entry_wire_properties ?? DEFAULT_WIRE_PROPERTIES),
+                  ...values,
+                },
+              }
+            : line,
+        ),
+      };
     if (target.kind === "explicit")
       return {
         ...state,
@@ -76,6 +92,17 @@ export function wirePropertiesCommand(
     };
   };
   async function apply(db: Db, undo: boolean) {
+    if (target.kind === "line_entry") {
+      const repo = linesRepo(db);
+      const current = await repo.get(target.id);
+      previous ??= current.entry_wire_properties;
+      await repo.update(target.id, {
+        entry_wire_properties: undo
+          ? previous
+          : { ...current.entry_wire_properties, ...patch },
+      });
+      return;
+    }
     if (target.kind === "explicit") {
       const repo = connectionsRepo(db);
       const current = await repo.get(target.id);

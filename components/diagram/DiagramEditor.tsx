@@ -1134,17 +1134,13 @@ export function DiagramEditor({
   );
 
   const selectedWire = [
+    ...(view?.lineWires ?? []),
     ...(view?.wires ?? []),
     ...(view?.explicitWires ?? []),
   ].find((wire) => wire.key === selectedWireKey);
   const wireEndpoints = (() => {
     const reference = selectedWire?.reference;
     if (!reference) return "";
-    const connection =
-      reference.kind === "explicit"
-        ? view?.connections.find((c) => c.id === reference.id)
-        : reference;
-    if (!connection) return "";
     const name = (id: string) => {
       const component = view?.components.find((c) => c.id === id);
       return (
@@ -1157,6 +1153,15 @@ export function DiagramEditor({
           : "Component")
       );
     };
+    if (reference.kind === "line_entry") {
+      const line = view?.lines.find((line) => line.id === reference.id);
+      return `${line?.name ?? "Line"} I/O port → ${name(selectedWire?.toComponentId ?? "")}`;
+    }
+    const connection =
+      reference.kind === "explicit"
+        ? view?.connections.find((c) => c.id === reference.id)
+        : reference;
+    if (!connection) return "";
     return `${name(connection.from_component_id)} → ${name(connection.to_component_id)}`;
   })();
   let panelSelection: PanelSelection | null = null;
@@ -1516,7 +1521,8 @@ export function DiagramEditor({
                 />
                 <WireSegments
                   wires={view.lineWires}
-                  onSelect={(key) => selectLine(key.slice(5))}
+                  onSelect={selectWire}
+                  selectedKey={selectedWireKey}
                 />
                 <WireSegments
                   wires={view.wires}

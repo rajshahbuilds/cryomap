@@ -204,10 +204,77 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     await expect(
       page.getByLabel("Construction", { exact: true }),
     ).toBeDisabled();
+    await page
+      .getByRole("button", {
+        name: "Signal: line endpoint connection",
+        exact: true,
+      })
+      .press("Enter");
+    await expect(
+      page.getByLabel("Construction", { exact: true }),
+    ).toBeDisabled();
+    await expect(
+      page.getByText("Signal I/O port → Top", { exact: true }),
+    ).toBeVisible();
     await page.getByRole("button", { name: "Check Out to Edit" }).click();
     await expect(
       page.getByLabel("Construction", { exact: true }),
     ).toBeEnabled();
+    const entryDatasheet = "https://example.com/entry-wire.pdf";
+    const entryProperties = async () =>
+      check(
+        await db
+          .from("lines")
+          .select("entry_wire_properties")
+          .eq("id", line)
+          .single(),
+      )!.entry_wire_properties;
+    await page
+      .getByLabel("Construction", { exact: true })
+      .selectOption("coaxial");
+    await expect
+      .poll(entryProperties)
+      .toMatchObject({ construction: "coaxial" });
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.getByLabel("Construction", { exact: true })).toHaveValue(
+      "unspecified",
+    );
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await expect(page.getByLabel("Construction", { exact: true })).toHaveValue(
+      "coaxial",
+    );
+    for (const [name, value] of [
+      ["Label", "Entry feed"],
+      ["Conductor material", "CuNi"],
+      ["Shield material", "copper"],
+      ["Length", "0.75"],
+      ["Gauge / diameter", "36"],
+      ["Conductor count", "1"],
+      ["Datasheet URL", entryDatasheet],
+      ["Notes", "Warm lead"],
+    ]) {
+      await page.getByLabel(name, { exact: true }).fill(value);
+      await page.getByLabel(name, { exact: true }).press("Tab");
+    }
+    await expect(
+      page.locator("svg text").filter({ hasText: /^Entry feed$/ }),
+    ).toHaveCount(0);
+    await page.getByLabel("Show label on diagram").check();
+    await expect(
+      page.locator("svg text").filter({ hasText: /^Entry feed$/ }),
+    ).toHaveCount(1);
+    await expect.poll(entryProperties).toMatchObject({
+      construction: "coaxial",
+      label: "Entry feed",
+      show_label: true,
+      material: "CuNi",
+      inner_shield_material: "copper",
+      length: { value: 0.75, unit: "m" },
+      size: { value: 36, unit: "awg" },
+      conductor_count: 1,
+      datasheet_url: entryDatasheet,
+      notes: "Warm lead",
+    });
     await page
       .getByRole("button", { name: "Signal: Input line endpoint", exact: true })
       .click();
@@ -344,6 +411,24 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     ).toHaveValue("36");
     await expect(page.getByLabel("Datasheet URL")).toHaveValue(datasheet);
     await page
+      .getByRole("button", { name: "Wire: Entry feed", exact: true })
+      .press("Enter");
+    await expect(page.getByLabel("Construction", { exact: true })).toHaveValue(
+      "coaxial",
+    );
+    await expect(
+      page.getByLabel("Shield material", { exact: true }),
+    ).toHaveValue("copper");
+    await expect(page.getByLabel("Length", { exact: true })).toHaveValue(
+      "0.75",
+    );
+    await expect(page.getByLabel("Datasheet URL", { exact: true })).toHaveValue(
+      entryDatasheet,
+    );
+    await page.screenshot({
+      path: testInfo.outputPath("entry-wire-properties.png"),
+    });
+    await page
       .getByRole("button", { name: "Bench wiring", exact: true })
       .click();
     await page
@@ -391,7 +476,16 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
         .single(),
     )!;
     expect(version.snapshot).toMatchObject({
-      lines: [{ direction: "input" }],
+      lines: [
+        {
+          direction: "input",
+          entry_wire_properties: {
+            construction: "coaxial",
+            label: "Entry feed",
+            datasheet_url: entryDatasheet,
+          },
+        },
+      ],
       components: expect.arrayContaining([
         {
           ...check(
@@ -424,6 +518,15 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     const file = await downloaded;
     const exported = JSON.parse(await readFile((await file.path())!, "utf8"));
     expect(exported).toMatchObject({
+      lines: [
+        {
+          entry_wire_properties: {
+            construction: "coaxial",
+            label: "Entry feed",
+            datasheet_url: entryDatasheet,
+          },
+        },
+      ],
       connections: [{ wire_properties: { datasheet_url: coaxDatasheet } }],
       wire_segment_properties: [
         { wire_properties: { label: "Sensor A", datasheet_url: datasheet } },

@@ -326,7 +326,11 @@ export function assembleDiagram(
     );
     lineWires.push({
       key: `line:${line.id}`,
-      selectionLabel: `${line.name}: line endpoint connection`,
+      selectionLabel: line.entry_wire_properties?.label
+        ? `Wire: ${line.entry_wire_properties.label}`
+        : `${line.name}: line endpoint connection`,
+      reference: { kind: "line_entry", id: line.id },
+      properties: line.entry_wire_properties ?? DEFAULT_WIRE_PROPERTIES,
       toComponentId: first.id,
       from,
       to,

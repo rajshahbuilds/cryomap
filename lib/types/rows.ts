@@ -176,6 +176,7 @@ export const lineRowSchema = z.object({
   sheet_id: uuid.nullable().default(null),
   name: z.string(),
   line_type: lineTypeSchema.nullable(),
+  entry_wire_properties: wirePropertiesSchema.default(DEFAULT_WIRE_PROPERTIES),
   // Historical snapshots may contain null; live lines always have a direction.
   direction: z.preprocess((value) => value ?? "input", directionSchema),
   status: entityStatusSchema,
@@ -195,6 +196,7 @@ export const lineCreateSchema = z.object({
   name: z.string().min(1),
   line_type: lineTypeSchema.nullish(),
   direction: directionSchema.optional(),
+  entry_wire_properties: wirePropertiesSchema.optional(),
   status: entityStatusSchema.optional(),
   notes: z.string().nullish(),
   sort_order: z.number().int(),

@@ -1,5 +1,7 @@
 "use client";
 
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
+
 import { LINE_ENDPOINT_HEADER } from "@/lib/diagram/lineConnections";
 import {
   useCallback,
@@ -281,6 +283,7 @@ export function DemoDiagramEditor() {
       name: `Line ${index + 1}`,
       line_type: null,
       direction: "input",
+      entry_wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
       status: "planned",
       notes: null,
       sort_order: index,

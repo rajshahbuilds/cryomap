@@ -87,6 +87,9 @@ construction properties are connected to the editor.
 Click a wire on either sheet to inspect it in the right-hand panel. Check out
 before editing. Construction and label visibility update immediately; text and
 measurements save when you leave their field. Optional values can be cleared.
+The wire from the line's I/O port to its first component uses the same panel and
+attributes. Its details belong to that line entry and remain when the first
+component changes or the line is temporarily empty.
 Labels are hidden by default and appear only after enabling **Show label on
 diagram**. Material is independent of construction; coaxial and triaxial wires
 also expose their shield materials. Gauge accepts AWG (including `2/0`, `3/0`,
@@ -114,8 +117,8 @@ in the component panel; these refer to physical position, independent of signal
 flow. Stored choices follow their ports when a component rotates or mirrors.
 Explicit cables take precedence over automatic connections on the same ports.
 
-Apply the `20261115120000_line_endpoints.sql` migration before running this
-version. It backfills empty live directions to Input, requires one of the three
+Apply `20261115120000_line_endpoints.sql` and
+`20261115140000_line_entry_wire_properties.sql` before running this version. It backfills empty live directions to Input, requires one of the three
 directions, and adds nullable component port choices. Historical snapshots load
 with Input and automatic port defaults; stored history is left intact.
 

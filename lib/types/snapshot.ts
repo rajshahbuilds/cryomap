@@ -94,6 +94,9 @@ export function snapshotToState(snapshot: Snapshot): DiagramState {
     lines: snapshot.lines.map((line) => ({
       ...line,
       direction: line.direction ?? "input",
+      entry_wire_properties: wirePropertiesSchema.parse(
+        line.entry_wire_properties ?? {},
+      ),
     })),
     components: snapshot.components.map((component) => ({
       ...component,

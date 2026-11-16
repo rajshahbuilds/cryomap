@@ -1,5 +1,13 @@
+import { wirePropertiesSchema } from "@/lib/types";
 import type { Line, LineCreateInput, LineUpdateInput } from "@/lib/types";
 import { type Db, check, unwrap } from "./_support";
+
+const normalize = (row: Line): Line => ({
+  ...row,
+  entry_wire_properties: wirePropertiesSchema.parse(
+    row.entry_wire_properties ?? {},
+  ),
+});
 
 export const linesRepo = (db: Db) => ({
   async listByFridge(fridgeId: string): Promise<Line[]> {
@@ -8,7 +16,12 @@ export const linesRepo = (db: Db) => ({
       .select("*")
       .eq("fridge_id", fridgeId)
       .order("sort_order", { ascending: true });
-    return unwrap(res) as Line[];
+    return (unwrap(res) as Line[]).map(normalize);
+  },
+
+  async get(id: string): Promise<Line> {
+    const res = await db.from("lines").select("*").eq("id", id).single();
+    return normalize(unwrap(res) as Line);
   },
 
   // Snapshot-compatible inputs allow missing sheet ids; live writes are
@@ -19,12 +32,15 @@ export const linesRepo = (db: Db) => ({
       .insert({
         ...input,
         direction: input.direction ?? "input",
+        entry_wire_properties: wirePropertiesSchema.parse(
+          input.entry_wire_properties ?? {},
+        ),
         ...(id ? { id } : {}),
         sheet_id: input.sheet_id!,
       })
       .select()
       .single();
-    return unwrap(res) as Line;
+    return normalize(unwrap(res) as Line);
   },
 
   async createMany(inputs: LineCreateInput[]): Promise<Line[]> {
@@ -34,22 +50,35 @@ export const linesRepo = (db: Db) => ({
         inputs.map((input) => ({
           ...input,
           direction: input.direction ?? "input",
+          entry_wire_properties: wirePropertiesSchema.parse(
+            input.entry_wire_properties ?? {},
+          ),
           sheet_id: input.sheet_id!,
         })),
       )
       .select();
-    return unwrap(res) as Line[];
+    return (unwrap(res) as Line[]).map(normalize);
   },
 
   async update(id: string, patch: LineUpdateInput): Promise<Line> {
-    const { sheet_id, ...values } = patch;
+    const { sheet_id, entry_wire_properties, ...values } = patch;
     const res = await db
       .from("lines")
-      .update({ ...values, ...(sheet_id != null ? { sheet_id } : {}) })
+      .update({
+        ...values,
+        ...(entry_wire_properties !== undefined
+          ? {
+              entry_wire_properties: wirePropertiesSchema.parse(
+                entry_wire_properties,
+              ),
+            }
+          : {}),
+        ...(sheet_id != null ? { sheet_id } : {}),
+      })
       .eq("id", id)
       .select()
       .single();
-    return unwrap(res) as Line;
+    return normalize(unwrap(res) as Line);
   },
 
   async remove(id: string): Promise<void> {

@@ -98,6 +98,7 @@ export function makeLine(overrides: Partial<Line> = {}): Line {
     name: "Q1 XY drive",
     line_type: "xy_drive",
     direction: "input",
+    entry_wire_properties: { ...DEFAULT_WIRE_PROPERTIES },
     status: "planned",
     notes: null,
     sort_order: 0,

@@ -33,7 +33,19 @@ export function WirePropertiesPanel({
   onSave,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
-  const save = (patch: Partial<WireProperties>) => {
+  const [visibility, setVisibility] = useState({
+    saved: properties.show_label,
+    value: properties.show_label,
+  });
+  // Keep toggles responsive while earlier edits are queued. A changed saved
+  // value also synchronizes undo/redo and failed-save rollback without remounting.
+  if (visibility.saved !== properties.show_label) {
+    setVisibility({
+      saved: properties.show_label,
+      value: properties.show_label,
+    });
+  }
+  const save = (patch: Partial<WireProperties>, force = false) => {
     if (readOnly) return;
     const parsed = wirePropertiesSchema.safeParse({ ...properties, ...patch });
     if (!parsed.success) {
@@ -52,6 +64,7 @@ export function WirePropertiesPanel({
     }
     setError(null);
     if (
+      force ||
       Object.entries(patch).some(
         ([key, value]) =>
           JSON.stringify(properties[key as keyof WireProperties]) !==
@@ -136,9 +149,17 @@ export function WirePropertiesPanel({
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input
             type="checkbox"
-            checked={properties.show_label}
+            checked={visibility.value}
             disabled={readOnly}
-            onChange={(e) => save({ show_label: e.target.checked })}
+            onChange={(e) => {
+              setVisibility({
+                saved: properties.show_label,
+                value: e.target.checked,
+              });
+              // A second toggle may cancel a first one that hasn't reached the
+              // command queue yet; enqueue both even if the saved value matches.
+              save({ show_label: e.target.checked }, true);
+            }}
           />
           Show label on diagram
         </label>

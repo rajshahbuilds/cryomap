@@ -69,6 +69,9 @@ psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/wire_propertie
 echo "• running line-endpoints suite"
 psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/line_endpoints.sql" 2>&1
 
+echo "• running line-entry wire suite"
+psql -v ON_ERROR_STOP=1 -q -U postgres -d "$PGDATABASE" -f "$HERE/line_entry_wires.sql" 2>&1
+
 echo "• verifying upgrade from the pre-wire schema"
 export PGDATABASE=cryomap_upgrade_test
 createdb -U postgres "$PGDATABASE"

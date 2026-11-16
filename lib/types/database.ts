@@ -403,6 +403,7 @@ export type Database = {
         Row: {
           created_at: string
           direction: string
+          entry_wire_properties: NonNullable<Json>
           fridge_id: string | null
           id: string
           line_type: string | null
@@ -418,6 +419,7 @@ export type Database = {
         Insert: {
           created_at?: string
           direction?: string
+          entry_wire_properties?: NonNullable<Json>
           fridge_id?: string | null
           id?: string
           line_type?: string | null
@@ -432,6 +434,7 @@ export type Database = {
         Update: {
           created_at?: string
           direction?: string
+          entry_wire_properties?: NonNullable<Json>
           fridge_id?: string | null
           id?: string
           line_type?: string | null

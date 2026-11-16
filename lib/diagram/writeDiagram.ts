@@ -87,6 +87,7 @@ export async function writeDiagramState(
           name: l.name,
           line_type: l.line_type,
           direction: l.direction,
+          entry_wire_properties: l.entry_wire_properties,
           status: l.status,
           notes: l.notes,
           sort_order: l.sort_order,

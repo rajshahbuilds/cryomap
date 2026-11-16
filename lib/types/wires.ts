@@ -65,6 +65,7 @@ export interface WireSegmentIdentity {
 }
 export type WireReference =
   | { kind: "explicit"; id: string }
+  | { kind: "line_entry"; id: string }
   | ({ kind: "implicit" } & WireSegmentIdentity);
 export function wireSegmentKey(
   segment: Pick<
