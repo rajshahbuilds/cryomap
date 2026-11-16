@@ -228,6 +228,28 @@ export function PropertiesPanel({
       </div>
 
       <div className="space-y-3 p-4">
+        {selection.kind === "component" &&
+        selection.component.line_endpoint_id ? (
+          <label className="block space-y-1 text-xs text-muted">
+            <span>Direction</span>
+            <select
+              aria-label="Direction"
+              disabled={readOnly}
+              value={
+                lines.find((l) => l.id === selection.component.line_endpoint_id)
+                  ?.direction ?? "input"
+              }
+              onChange={(e) =>
+                onSave({ line_endpoint_direction: e.target.value })
+              }
+              className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-foreground disabled:opacity-60"
+            >
+              <option value="input">Input</option>
+              <option value="output">Output</option>
+              <option value="bidirectional">Bidirectional</option>
+            </select>
+          </label>
+        ) : null}
         {selection.kind === "component" && (onRotate || onMirror) ? (
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted">Orientation</span>

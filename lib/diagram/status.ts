@@ -10,7 +10,9 @@ import type { LockState } from "@/lib/locks/state";
 
 /** Number of placed components currently on the canvas. */
 export function componentCount(view: DiagramView | null): number {
-  return view?.positioned.length ?? 0;
+  return (
+    view?.positioned.filter((p) => !p.component.line_endpoint_id).length ?? 0
+  );
 }
 
 /** Camera scale (px per logical unit) as a whole-number zoom percentage. */

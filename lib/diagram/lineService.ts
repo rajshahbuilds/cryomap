@@ -75,5 +75,6 @@ export async function deleteLineWithComponents(
   lineId: string,
 ): Promise<void> {
   await componentsRepo(db).removeByLine(lineId);
+  await componentsRepo(db).removeLineEndpoint(lineId);
   await linesRepo(db).remove(lineId);
 }

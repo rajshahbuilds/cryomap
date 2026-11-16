@@ -1,5 +1,7 @@
 "use client";
 
+import { materializeLineEndpointsCommand } from "@/lib/diagram/lineEndpoints";
+import type { UndoCommand } from "@/lib/diagram/undoStack";
 import { LINE_ENDPOINT_HEADER } from "@/lib/diagram/lineConnections";
 import {
   useCallback,
@@ -37,7 +39,7 @@ import { CheckInModal, type CheckInValues } from "./CheckInModal";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { CustomComponentModal } from "./CustomComponentModal";
 import { LineChains } from "./LineChains";
-import { LineColumns } from "./LineColumns";
+import { LineColumns, LineEndpointCaption } from "./LineColumns";
 import { LineModal } from "./LineModal";
 import { LinesBar } from "./LinesBar";
 import { LockBanner } from "./LockBanner";
@@ -290,7 +292,7 @@ export function DiagramEditor({
   const prevLockState = useRef(lock.state);
 
   const {
-    apply: applyEdit,
+    apply: applyCommand,
     undo: undoEdit,
     redo: redoEdit,
     reset: resetUndo,
@@ -302,6 +304,23 @@ export function DiagramEditor({
     reload,
     (error) => toast.error(errorToMessage(error, "Couldn’t save your change")),
     updateState,
+  );
+
+  const applyEdit = useCallback(
+    (command: UndoCommand, componentIds: string[] = []) => {
+      // Materialize a legacy endpoint only when this edit touches it.
+      const endpoints =
+        view?.positioned
+          .filter(
+            (p) =>
+              p.component.line_endpoint_id &&
+              componentIds.includes(p.component.id) &&
+              !diagramState?.components.some((c) => c.id === p.component.id),
+          )
+          .map((p) => p.component) ?? [];
+      applyCommand(materializeLineEndpointsCommand(command, endpoints));
+    },
+    [applyCommand, view, diagramState],
   );
 
   // Editing also requires an editor+ role, so a viewer holding a stale lock (or
@@ -565,7 +584,7 @@ export function DiagramEditor({
         size: componentSize(component, def),
         rotation: effectiveRotation(component, view.orientation),
         stages: view.stages,
-        lines: view.lines,
+        lines: component.line_endpoint_id ? [] : view.lines,
         obstacles: obstaclesExcept(component.id),
       });
     },
@@ -648,6 +667,7 @@ export function DiagramEditor({
               to_port_side: target.port.side,
               to_port_index: target.port.index,
             }),
+            [pending.from.componentId, target.componentId],
           );
         }
         return;
@@ -768,6 +788,7 @@ export function DiagramEditor({
                 },
                 fridgeId,
               ),
+              [component.id],
             );
           }
         }
@@ -1018,34 +1039,42 @@ export function DiagramEditor({
       before: c.rotation,
       after: nextRotation(c.rotation),
     }));
-    applyEdit({
-      redo: async (db) => {
-        await Promise.all(items.map((i) => rotateComponent(db, i.id, i.after)));
+    applyEdit(
+      {
+        redo: async (db) => {
+          await Promise.all(
+            items.map((i) => rotateComponent(db, i.id, i.after)),
+          );
+        },
+        undo: async (db) => {
+          await Promise.all(
+            items.map((i) => rotateComponent(db, i.id, i.before)),
+          );
+        },
       },
-      undo: async (db) => {
-        await Promise.all(
-          items.map((i) => rotateComponent(db, i.id, i.before)),
-        );
-      },
-    });
+      sources.map((c) => c.id),
+    );
   };
 
   // Toggle horizontal mirror on a set of components as one undoable edit.
   const mirrorComponents = (sources: Component[]) => {
     if (sources.length === 0) return;
     const items = sources.map((c) => ({ id: c.id, before: c.mirrored }));
-    applyEdit({
-      redo: async (db) => {
-        await Promise.all(
-          items.map((i) => mirrorComponent(db, i.id, !i.before)),
-        );
+    applyEdit(
+      {
+        redo: async (db) => {
+          await Promise.all(
+            items.map((i) => mirrorComponent(db, i.id, !i.before)),
+          );
+        },
+        undo: async (db) => {
+          await Promise.all(
+            items.map((i) => mirrorComponent(db, i.id, i.before)),
+          );
+        },
       },
-      undo: async (db) => {
-        await Promise.all(
-          items.map((i) => mirrorComponent(db, i.id, i.before)),
-        );
-      },
-    });
+      sources.map((c) => c.id),
+    );
   };
 
   // Duplicate a set of components as one undoable edit.
@@ -1098,6 +1127,10 @@ export function DiagramEditor({
           return;
         }
         if (selectedComponents.length === 0) return;
+        if (selectedComponents.some((c) => c.line_endpoint_id)) {
+          toast.warning("Delete the line to remove its I/O port.");
+          return;
+        }
         let items = [...selectedComponents];
         const deletedIds = items.map((component) => component.id);
         setSelectedIds([]);
@@ -1142,7 +1175,9 @@ export function DiagramEditor({
     const reference = selectedWire?.reference;
     if (!reference) return "";
     const name = (id: string) => {
-      const component = view?.components.find((c) => c.id === id);
+      const component = view?.positioned.find(
+        (p) => p.component.id === id,
+      )?.component;
       return (
         component?.label ||
         (component
@@ -1203,7 +1238,45 @@ export function DiagramEditor({
       before[key] = (entity as Record<string, unknown>)[key];
     }
     if (panelSelection.kind === "component") {
-      applyEdit(componentPatchCommand(id, before, patch));
+      if (
+        panelSelection.component.line_endpoint_id &&
+        "line_endpoint_direction" in patch
+      ) {
+        const line = view?.lines.find(
+          (l) => l.id === panelSelection.component.line_endpoint_id,
+        );
+        const direction = patch.line_endpoint_direction;
+        if (
+          line &&
+          (direction === "input" ||
+            direction === "output" ||
+            direction === "bidirectional")
+        )
+          applyEdit(
+            linePatchCommand(
+              line.id,
+              { direction: line.direction },
+              { direction },
+            ),
+          );
+        return;
+      }
+      if (panelSelection.component.line_endpoint_id && "label" in patch) {
+        const line = view?.lines.find(
+          (l) => l.id === panelSelection.component.line_endpoint_id,
+        );
+        const label = typeof patch.label === "string" ? patch.label.trim() : "";
+        const rename =
+          line && label && label !== line.name
+            ? [linePatchCommand(line.id, { name: line.name }, { name: label })]
+            : [];
+        applyEdit(
+          sequenceCommand(componentPatchCommand(id, before, patch), ...rename),
+          [id],
+        );
+        return;
+      }
+      applyEdit(componentPatchCommand(id, before, patch), [id]);
     } else if (panelSelection.kind === "line") {
       applyEdit(linePatchCommand(id, before, patch));
     } else {
@@ -1261,6 +1334,10 @@ export function DiagramEditor({
           label: "Delete",
           danger: true,
           onSelect: () => {
+            if (menu.component.line_endpoint_id) {
+              toast.warning("Delete the line to remove its I/O port.");
+              return;
+            }
             const id = menu.component.id;
             let item = menu.component;
             setSelectedIds((s) => s.filter((x) => x !== id));
@@ -1400,9 +1477,9 @@ export function DiagramEditor({
             if (!window.confirm("Delete this line and its components?")) return;
             const line = view.lines.find((l) => l.id === id);
             if (!line) return;
-            const components = view.positioned
-              .map((p) => p.component)
-              .filter((c) => c.line_id === id);
+            const components = view.components.filter(
+              (c) => c.line_id === id || c.line_endpoint_id === id,
+            );
             applyEdit(deleteLineCommand(line, components));
           }}
         />
@@ -1503,6 +1580,7 @@ export function DiagramEditor({
               >
                 <LineColumns
                   lines={view.lines}
+                  showEndpoints={false}
                   showGuides={canEdit}
                   height={stagesHeight(view.stages) || bounds?.height}
                   highlightLineIds={
@@ -1565,6 +1643,29 @@ export function DiagramEditor({
                 {view.positioned.map(({ component, x, y }) => (
                   <g
                     key={component.id}
+                    data-testid={
+                      component.line_endpoint_id
+                        ? `line-endpoint-${component.line_endpoint_id}`
+                        : `component-${component.id}`
+                    }
+                    role={component.line_endpoint_id ? "button" : undefined}
+                    tabIndex={component.line_endpoint_id ? 0 : undefined}
+                    onKeyDown={
+                      component.line_endpoint_id
+                        ? (e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedIds([component.id]);
+                              setSelectedLineId(null);
+                            }
+                          }
+                        : undefined
+                    }
+                    aria-label={
+                      component.line_endpoint_id
+                        ? `${component.label}: ${component.component_type === "output_port" ? "Output" : component.component_type === "bidir_port" ? "Bidirectional" : "Input"} line endpoint`
+                        : undefined
+                    }
                     onPointerDown={(e) =>
                       onComponentPointerDown(e, component.id)
                     }
@@ -1621,6 +1722,9 @@ export function DiagramEditor({
                               cx={anchor.point.x}
                               cy={anchor.point.y}
                               r={5}
+                              data-testid={`port-${component.id}-${anchor.port.side}-${anchor.port.index}`}
+                              role="button"
+                              aria-label={`Connect ${component.label || component.component_type} ${anchor.port.side} ${anchor.port.index + 1}`}
                               fill="#ffffff"
                               stroke="#2563eb"
                               strokeWidth={1.5}
@@ -1706,12 +1810,22 @@ export function DiagramEditor({
                       }
                       style={{ cursor: "pointer" }}
                     >
-                      <ComponentCaption
-                        component={component}
-                        def={defFor(component)}
-                        x={x}
-                        y={y}
-                      />
+                      {component.line_endpoint_id ? (
+                        <LineEndpointCaption
+                          line={view.lines.find(
+                            (l) => l.id === component.line_endpoint_id,
+                          )!}
+                          x={x}
+                          y={y}
+                        />
+                      ) : (
+                        <ComponentCaption
+                          component={component}
+                          def={defFor(component)}
+                          x={x}
+                          y={y}
+                        />
+                      )}
                     </g>
                   ),
                 )}

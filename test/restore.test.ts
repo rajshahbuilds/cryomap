@@ -38,7 +38,9 @@ describe("snapshot → render-state mapping", () => {
     const [version] = await versionsRepo(asDb(fake)).listByFridge(F);
     const view = assembleDiagram(snapshotToState(version.snapshot));
     expect(view.stages.map((s) => s.id)).toEqual(["s1"]);
-    expect(view.positioned).toHaveLength(1);
+    expect(
+      view.positioned.filter((p) => !p.component.line_endpoint_id),
+    ).toHaveLength(1);
   });
 });
 
@@ -139,7 +141,9 @@ describe("restoreVersion of a pre-sheets snapshot", () => {
     // And it renders, rather than resolving to a blank canvas.
     const view = assembleDiagram(state);
     expect(view.sheet?.id).toBe(state.sheets[0].id);
-    expect(view.positioned).toHaveLength(1);
+    expect(
+      view.positioned.filter((p) => !p.component.line_endpoint_id),
+    ).toHaveLength(1);
   });
 });
 

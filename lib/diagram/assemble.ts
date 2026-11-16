@@ -1,3 +1,4 @@
+import { lineEndpointComponent, lineEndpointType } from "./lineEndpoints";
 import { DEFAULT_WIRE_PROPERTIES, wireSegmentKey } from "@/lib/types";
 import type {
   Annotation,
@@ -12,7 +13,7 @@ import type {
   Stage,
 } from "@/lib/types";
 import type { Point } from "@/lib/diagram/camera";
-import { lineConnectionPorts, LINE_ENDPOINT_Y } from "./lineConnections";
+import { lineConnectionPorts } from "./lineConnections";
 import { lineColumnXById } from "@/lib/diagram/lines";
 import { layoutStageBands, type StageBand } from "@/lib/diagram/stages";
 import {
@@ -190,7 +191,9 @@ export function assembleDiagram(
   const onThisSheet = (rowSheetId: string | null) =>
     legacy || (sheet != null && onSheet(rowSheetId, sheet));
 
-  const components = state.components.filter((c) => onThisSheet(c.sheet_id));
+  const storedComponents = state.components.filter((c) =>
+    onThisSheet(c.sheet_id),
+  );
   const connections = state.connections.filter((c) => onThisSheet(c.sheet_id));
   const stages = state.stages.filter((s) => onThisSheet(s.sheet_id));
   const lines = state.lines.filter((l) => onThisSheet(l.sheet_id));
@@ -199,6 +202,16 @@ export function assembleDiagram(
   const bands = layoutStageBands(stages);
   const bandById = new Map(bands.map((band) => [band.stage.id, band]));
   const lineXById = lineColumnXById(lines);
+  const endpoints = lines.map((line) => {
+    const saved = storedComponents.find((c) => c.line_endpoint_id === line.id);
+    return saved
+      ? { ...saved, component_type: lineEndpointType(line), label: line.name }
+      : lineEndpointComponent(line, lineXById.get(line.id)!);
+  });
+  const components = [
+    ...storedComponents.filter((c) => !c.line_endpoint_id),
+    ...endpoints,
+  ];
   const customDefById = new Map(state.customDefs.map((def) => [def.id, def]));
   // All fridge lines (every sheet), so a room-temp fridge_port can name its link.
   const lineNameById = new Map(state.lines.map((l) => [l.id, l.name]));
@@ -212,7 +225,11 @@ export function assembleDiagram(
     positioned.push({ component, x: anchor.x, y: anchor.y });
 
     // Components attached to a trunk get joined down the line by implicit wires.
-    if (!component.free_floating && component.line_id) {
+    if (
+      !component.line_endpoint_id &&
+      !component.free_floating &&
+      component.line_id
+    ) {
       placedForWires.push({
         id: component.id,
         lineId: component.line_id,
@@ -315,12 +332,18 @@ export function assembleDiagram(
       .filter((c) => c.lineId === line.id)
       .sort((a, b) => a.y - b.y)[0];
     if (!first?.entry) continue;
-    const from = { x: lineXById.get(line.id)!, y: LINE_ENDPOINT_Y };
+    const endpoint = endpoints.find((c) => c.line_endpoint_id === line.id)!;
+    const endpointPort = componentPorts(endpoint)[0];
+    // Once the user explicitly wires this terminal, their wiring takes precedence.
+    if (occupied.has(`${endpoint.id}:${portKey(endpointPort)}`)) continue;
+    const source = portAt(endpoint.id, endpointPort);
+    if (!source) continue;
+    const from = source.point;
     const to = first.entry.point;
     const points = orthogonalRouteAvoiding(
       from,
       to,
-      "bottom",
+      source.side,
       first.entry.side,
       obstacles.map((obstacle) => obstacle.box),
     );
@@ -331,6 +354,7 @@ export function assembleDiagram(
         : `${line.name}: line endpoint connection`,
       reference: { kind: "line_entry", id: line.id },
       properties: line.entry_wire_properties ?? DEFAULT_WIRE_PROPERTIES,
+      fromComponentId: endpoint.id,
       toComponentId: first.id,
       from,
       to,
@@ -388,7 +412,7 @@ export function assembleDiagram(
     orientation,
     stages,
     lines,
-    components,
+    components: storedComponents,
     positioned,
     wires,
     lineWires,
