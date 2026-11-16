@@ -16,7 +16,12 @@ export const linesRepo = (db: Db) => ({
   async create(input: LineCreateInput, id?: string): Promise<Line> {
     const res = await db
       .from("lines")
-      .insert({ ...input, ...(id ? { id } : {}), sheet_id: input.sheet_id! })
+      .insert({
+        ...input,
+        direction: input.direction ?? "input",
+        ...(id ? { id } : {}),
+        sheet_id: input.sheet_id!,
+      })
       .select()
       .single();
     return unwrap(res) as Line;
@@ -25,7 +30,13 @@ export const linesRepo = (db: Db) => ({
   async createMany(inputs: LineCreateInput[]): Promise<Line[]> {
     const res = await db
       .from("lines")
-      .insert(inputs.map((input) => ({ ...input, sheet_id: input.sheet_id! })))
+      .insert(
+        inputs.map((input) => ({
+          ...input,
+          direction: input.direction ?? "input",
+          sheet_id: input.sheet_id!,
+        })),
+      )
       .select();
     return unwrap(res) as Line[];
   },

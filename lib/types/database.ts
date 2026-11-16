@@ -84,6 +84,8 @@ export type Database = {
           label: string | null
           last_edited_at: string
           last_edited_by: string | null
+          line_entry_port: Json | null
+          line_exit_port: Json | null
           line_id: string | null
           linked_line_id: string | null
           manufacturer: string | null
@@ -114,6 +116,8 @@ export type Database = {
           label?: string | null
           last_edited_at?: string
           last_edited_by?: string | null
+          line_entry_port?: Json | null
+          line_exit_port?: Json | null
           line_id?: string | null
           linked_line_id?: string | null
           manufacturer?: string | null
@@ -143,6 +147,8 @@ export type Database = {
           label?: string | null
           last_edited_at?: string
           last_edited_by?: string | null
+          line_entry_port?: Json | null
+          line_exit_port?: Json | null
           line_id?: string | null
           linked_line_id?: string | null
           manufacturer?: string | null
@@ -396,7 +402,7 @@ export type Database = {
       lines: {
         Row: {
           created_at: string
-          direction: string | null
+          direction: string
           fridge_id: string | null
           id: string
           line_type: string | null
@@ -411,7 +417,7 @@ export type Database = {
         ComputedFields: never
         Insert: {
           created_at?: string
-          direction?: string | null
+          direction?: string
           fridge_id?: string | null
           id?: string
           line_type?: string | null
@@ -425,7 +431,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          direction?: string | null
+          direction?: string
           fridge_id?: string | null
           id?: string
           line_type?: string | null
@@ -885,6 +891,7 @@ export type Database = {
       }
       redeem_invite: { Args: { invite_token: string }; Returns: Json }
       shares_workspace: { Args: { other_user: string }; Returns: boolean }
+      valid_line_port: { Args: { port: Json }; Returns: boolean }
       valid_wire_properties: { Args: { properties: Json }; Returns: boolean }
     }
     Enums: {

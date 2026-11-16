@@ -8,7 +8,7 @@ import {
   lineColumnX,
 } from "@/lib/diagram/lines";
 import { LineColumns } from "@/components/diagram/LineColumns";
-import { getLineTypeColor } from "@/lib/constants/lineTypes";
+import { LINE_ENDPOINT_Y } from "@/lib/diagram/lineConnections";
 import { makeLine } from "./fixtures";
 
 describe("lineColumnX", () => {
@@ -56,22 +56,58 @@ describe("LineColumns", () => {
     makeLine({ id: "l2", name: "Flux 1", sort_order: 1, line_type: "flux_z" }),
   ];
 
-  it("renders an ordered colored trunk + label per line", () => {
+  it("renders a directional endpoint and label without a full-height electrical trunk", () => {
     const { container } = renderWithProviders(
       <svg>
         <LineColumns lines={lines} height={1000} />
       </svg>,
     );
 
-    const trunks = container.querySelectorAll("line");
-    expect(trunks).toHaveLength(2);
-    expect(trunks[0].getAttribute("x1")).toBe(String(lineColumnX(0)));
-    expect(trunks[0].getAttribute("y2")).toBe("1000");
-    expect(trunks[0].getAttribute("stroke")).toBe(getLineTypeColor("xy_drive"));
+    expect(container.querySelectorAll('line[y2="1000"]')).toHaveLength(0);
+    const endpoint = screen.getByRole("img", {
+      name: "XY 1: Input line endpoint",
+    });
+    expect(endpoint.querySelector("circle")?.getAttribute("cx")).toBe(
+      String(lineColumnX(0)),
+    );
+    expect(
+      endpoint.querySelector('[data-component-type="input_port"] polygon'),
+    ).not.toBeNull();
+    expect(endpoint.querySelector("circle")).toHaveAttribute(
+      "cy",
+      String(LINE_ENDPOINT_Y),
+    );
 
     expect(screen.getByText("XY 1")).toBeInTheDocument();
     expect(screen.getByText("Flux 1")).toBeInTheDocument();
   });
+
+  it.each(["input", "output", "bidirectional"] as const)(
+    "shows and selects a %s endpoint with keyboard access",
+    async (direction) => {
+      const onSelectLine = vi.fn();
+      const { user } = renderWithProviders(
+        <svg>
+          <LineColumns
+            lines={[makeLine({ id: "endpoint", name: "Signal", direction })]}
+            onSelectLine={onSelectLine}
+          />
+        </svg>,
+      );
+      const endpoint = screen.getByRole("button", {
+        name: /Signal: .* line endpoint/,
+      });
+      expect(endpoint).toHaveAttribute("data-direction", direction);
+      const type =
+        direction === "bidirectional" ? "bidir_port" : `${direction}_port`;
+      expect(
+        endpoint.querySelector(`[data-component-type="${type}"] polygon`),
+      ).not.toBeNull();
+      endpoint.focus();
+      await user.keyboard("{Enter}");
+      expect(onSelectLine).toHaveBeenCalledWith("endpoint");
+    },
+  );
 
   it("hides the label when show_label is false", () => {
     renderWithProviders(
@@ -92,9 +128,7 @@ describe("LineColumns", () => {
         <LineColumns lines={[makeLine({ id: "u", line_type: null })]} />
       </svg>,
     );
-    expect(container.querySelector("line")?.getAttribute("stroke")).toBe(
-      "#6b7280",
-    );
+    expect(container.querySelector("text")).toHaveAttribute("fill", "#6b7280");
   });
 });
 
@@ -115,24 +149,29 @@ describe("LineColumns move", () => {
     ).toBeNull();
   });
 
-  it("thickens the trunk while its grab strip is hovered", () => {
+  it("emphasizes the editing guide while its grab strip is hovered", () => {
     const { container } = renderWithProviders(
       <svg>
-        <LineColumns lines={movable} height={1000} onStartMove={vi.fn()} />
+        <LineColumns
+          lines={movable}
+          height={1000}
+          showGuides
+          onStartMove={vi.fn()}
+        />
       </svg>,
     );
 
     const trunk = container.querySelectorAll("line")[0];
-    expect(trunk.getAttribute("stroke-width")).toBe("3");
+    expect(trunk.getAttribute("opacity")).toBe("0.12");
 
     const strip = container.querySelector(
       '[data-testid="line-move-strip-l1"]',
     )!;
     fireEvent.pointerEnter(strip);
-    expect(trunk.getAttribute("stroke-width")).toBe("5");
+    expect(trunk.getAttribute("opacity")).toBe("0.35");
 
     fireEvent.pointerLeave(strip);
-    expect(trunk.getAttribute("stroke-width")).toBe("3");
+    expect(trunk.getAttribute("opacity")).toBe("0.12");
   });
 
   it("starts a move with the previous trunk's x", () => {

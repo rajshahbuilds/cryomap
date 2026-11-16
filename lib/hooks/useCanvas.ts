@@ -18,6 +18,8 @@ import {
 } from "@/lib/diagram/camera";
 
 interface UseCanvasOptions {
+  /** Space above logical y=0 for sheet-boundary ports. */
+  topInset?: number;
   /** Pointer moved over the canvas, in logical coords (e.g. snap preview). */
   onLogicalPointerMove?: (point: Point) => void;
   /** Pointer released over the canvas, in logical coords (e.g. drop). */
@@ -35,6 +37,7 @@ const FALLBACK_VIEWPORT: Size = {
  * coordinate math itself lives in `lib/diagram/camera`.
  */
 export function useCanvas({
+  topInset = 0,
   onLogicalPointerMove,
   onLogicalPointerUp,
 }: UseCanvasOptions = {}) {
@@ -45,6 +48,7 @@ export function useCanvas({
   const [isPanMode, setIsPanMode] = useState(false);
 
   const initialized = useRef(false);
+  const lastInset = useRef(topInset);
   const spaceDown = useRef(false);
   const panning = useRef(false);
   const lastPointer = useRef<Point | null>(null);
@@ -78,35 +82,43 @@ export function useCanvas({
    * remount on reload — so the listeners must (re)attach whenever the node
    * actually appears, and tear down when it leaves.
    */
-  const ref = useCallback((node: SVGSVGElement | null) => {
-    teardown.current?.();
-    teardown.current = null;
-    elementRef.current = node;
-    if (!node) return;
-
-    const observer = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setViewport({ width, height });
-      if (!initialized.current && width > 0 && height > 0) {
-        setCamera(defaultCamera());
-        initialized.current = true;
+  const ref = useCallback(
+    (node: SVGSVGElement | null) => {
+      teardown.current?.();
+      teardown.current = null;
+      elementRef.current = node;
+      if (!node) return;
+      if (initialized.current && lastInset.current !== topInset) {
+        const delta = topInset - lastInset.current;
+        setCamera((camera) => ({ ...camera, y: camera.y - delta }));
       }
-    });
-    observer.observe(node);
+      lastInset.current = topInset;
 
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      const rect = node.getBoundingClientRect();
-      const anchor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-      setCamera((c) => wheelToCamera(c, e, anchor));
-    };
-    node.addEventListener("wheel", onWheel, { passive: false });
+      const observer = new ResizeObserver(([entry]) => {
+        const { width, height } = entry.contentRect;
+        setViewport({ width, height });
+        if (!initialized.current && width > 0 && height > 0) {
+          setCamera(defaultCamera(topInset));
+          initialized.current = true;
+        }
+      });
+      observer.observe(node);
 
-    teardown.current = () => {
-      observer.disconnect();
-      node.removeEventListener("wheel", onWheel);
-    };
-  }, []);
+      const onWheel = (e: WheelEvent) => {
+        e.preventDefault();
+        const rect = node.getBoundingClientRect();
+        const anchor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        setCamera((c) => wheelToCamera(c, e, anchor));
+      };
+      node.addEventListener("wheel", onWheel, { passive: false });
+
+      teardown.current = () => {
+        observer.disconnect();
+        node.removeEventListener("wheel", onWheel);
+      };
+    },
+    [topInset],
+  );
 
   // Track the space bar for pan mode.
   useEffect(() => {
@@ -188,8 +200,8 @@ export function useCanvas({
   /** Return to the initial top-left view at the default zoom. */
   const resetView = useCallback(() => {
     const vp = viewportRef.current;
-    if (vp.width > 0 && vp.height > 0) setCamera(defaultCamera());
-  }, []);
+    if (vp.width > 0 && vp.height > 0) setCamera(defaultCamera(topInset));
+  }, [topInset]);
 
   /** Pan (keeping zoom) so a logical point sits at the viewport center. */
   const centerOn = useCallback((point: Point) => {

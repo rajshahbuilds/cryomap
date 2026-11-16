@@ -1,5 +1,6 @@
 "use client";
 
+import { LINE_ENDPOINT_HEADER } from "@/lib/diagram/lineConnections";
 import {
   useCallback,
   useEffect,
@@ -795,6 +796,7 @@ export function DiagramEditor({
   // Lifted here (rather than inside Canvas) so the toolbar and status bar can
   // read the zoom level and drive the zoom controls.
   const canvas = useCanvas({
+    topInset: view?.lines.length ? LINE_ENDPOINT_HEADER : 0,
     onLogicalPointerMove: handleMove,
     onLogicalPointerUp: handleUp,
   });
@@ -1473,6 +1475,7 @@ export function DiagramEditor({
           ) : (
             <>
               <Canvas
+                topInset={view?.lines.length ? LINE_ENDPOINT_HEADER : 0}
                 controller={canvas}
                 width={bounds?.width}
                 height={bounds?.height}
@@ -1495,6 +1498,7 @@ export function DiagramEditor({
               >
                 <LineColumns
                   lines={view.lines}
+                  showGuides={canEdit}
                   height={stagesHeight(view.stages) || bounds?.height}
                   highlightLineIds={
                     selectedLineId
@@ -1509,6 +1513,10 @@ export function DiagramEditor({
                         }
                       : undefined
                   }
+                />
+                <WireSegments
+                  wires={view.lineWires}
+                  onSelect={(key) => selectLine(key.slice(5))}
                 />
                 <WireSegments
                   wires={view.wires}
@@ -1784,6 +1792,7 @@ export function DiagramEditor({
               panelSelection.kind === "line" && view && diagramState ? (
                 <LineChains
                   lineName={panelSelection.line.name}
+                  direction={panelSelection.line.direction}
                   chains={tracedChainsForLine(
                     diagramState,
                     panelSelection.line.id,

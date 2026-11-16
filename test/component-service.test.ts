@@ -22,6 +22,8 @@ const seed = () =>
         line_id: "lA",
         stage_id: "s1",
         rotation: 0,
+        line_entry_port: { side: "left", index: 0 },
+        line_exit_port: { side: "right", index: 0 },
         free_floating: false,
       }),
     ],
@@ -70,7 +72,12 @@ describe("componentService", () => {
     const original = await getC1(fake);
     const copy = await duplicateComponent(asDb(fake), original!);
     expect(copy.id).not.toBe("c1");
-    expect(copy).toMatchObject({ line_id: "lA", stage_id: "s1" });
+    expect(copy).toMatchObject({
+      line_id: "lA",
+      stage_id: "s1",
+      line_entry_port: original!.line_entry_port,
+      line_exit_port: original!.line_exit_port,
+    });
     expect(fake.tables.components).toHaveLength(2);
   });
 });

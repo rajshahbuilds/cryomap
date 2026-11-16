@@ -5,6 +5,7 @@ import type { Component, CustomComponentDef, Fridge, Line } from "@/lib/types";
 import { DIRECTIONS, ENTITY_STATUSES, LINE_TYPES } from "@/lib/types";
 import { getLineTypeLabel } from "@/lib/constants/lineTypes";
 import { getComponentDefinition } from "@/lib/constants/componentLibrary";
+import { ComponentLinePorts } from "./ComponentLinePorts";
 import { useDebouncedCallback } from "@/lib/hooks/useDebouncedCallback";
 
 export type PanelSelection =
@@ -192,7 +193,10 @@ export function PropertiesPanel({
   );
 
   const debouncedSave = useDebouncedCallback((next: Values) => {
-    onSave(toPatch(fields, next));
+    const patch = toPatch(fields, next);
+    // Direction is immediate and comes from the current row, including undo.
+    if (selection.kind === "line") delete patch.direction;
+    onSave(patch);
   }, 500);
 
   // The component's type doubles as the panel title (e.g. "HEMT Amplifier").
@@ -203,6 +207,10 @@ export function PropertiesPanel({
   }, [selection]);
 
   const update = (key: string, value: string | boolean) => {
+    if (selection.kind === "line" && key === "direction") {
+      onSave({ direction: value });
+      return;
+    }
     const next = { ...values, [key]: value };
     setValues(next);
     debouncedSave(next);
@@ -286,12 +294,19 @@ export function PropertiesPanel({
                   />
                 ) : field.kind === "select" ? (
                   <select
+                    aria-label={field.label}
                     disabled={readOnly}
-                    value={String(values[field.key] ?? "")}
+                    value={
+                      selection.kind === "line" && field.key === "direction"
+                        ? selection.line.direction
+                        : String(values[field.key] ?? "")
+                    }
                     onChange={(e) => update(field.key, e.target.value)}
                     className="w-full rounded border border-border bg-surface px-2 py-1 text-sm text-foreground disabled:opacity-60"
                   >
-                    <option value="">—</option>
+                    {field.key !== "direction" ? (
+                      <option value="">—</option>
+                    ) : null}
                     {field.options.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
@@ -311,6 +326,23 @@ export function PropertiesPanel({
             )}
           </label>
         ))}
+
+        {selection.kind === "component" &&
+        selection.component.line_id &&
+        !selection.component.free_floating ? (
+          <ComponentLinePorts
+            key={JSON.stringify([
+              selection.component.line_entry_port,
+              selection.component.line_exit_port,
+              selection.component.rotation,
+              selection.component.mirrored,
+            ])}
+            component={selection.component}
+            def={selection.def}
+            readOnly={readOnly}
+            onSave={onSave}
+          />
+        ) : null}
 
         {selection.kind === "component" &&
         selection.component.last_edited_at ? (

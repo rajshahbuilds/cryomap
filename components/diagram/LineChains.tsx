@@ -1,11 +1,12 @@
 "use client";
 
-import type { CustomComponentDef } from "@/lib/types";
+import type { CustomComponentDef, Direction } from "@/lib/types";
 import { hopLabel, type TracedChain } from "@/lib/diagram/trace";
 
 interface LineChainsProps {
   /** The selected line's display name — the terminal of every chain. */
   lineName: string;
+  direction?: Direction;
   /** Chains that terminate at this line (empty → nothing links here). */
   chains: TracedChain[];
   /** For labeling custom-component hops. */
@@ -24,10 +25,13 @@ interface LineChainsProps {
  */
 export function LineChains({
   lineName,
+  direction = "input",
   chains,
   customDefById,
   onJump,
 }: LineChainsProps) {
+  const arrow =
+    direction === "output" ? "←" : direction === "bidirectional" ? "↔" : "→";
   return (
     <div className="space-y-2 border-t border-border pt-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -62,7 +66,7 @@ export function LineChains({
               {nodes.map((n, i) => (
                 <span key={n.component.id} className="flex items-center gap-1">
                   {i > 0 ? (
-                    <span className="text-muted">{n.arrow ? "→" : "—"}</span>
+                    <span className="text-muted">{n.arrow ? arrow : "—"}</span>
                   ) : null}
                   <button
                     type="button"
@@ -84,7 +88,7 @@ export function LineChains({
                 <span className="flex items-center gap-1">
                   {nodes.length > 0 ? (
                     <span className="text-muted">
-                      {chain.oriented ? "→" : "—"}
+                      {chain.oriented ? arrow : "—"}
                     </span>
                   ) : null}
                   <span className="rounded border border-border bg-background px-1.5 py-0.5 font-medium text-foreground">

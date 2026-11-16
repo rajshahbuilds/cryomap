@@ -139,8 +139,8 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
           line_id: line,
           stage_id: stageB,
           free_floating: false,
-          component_type: "filter_lp",
-          label: "Bottom",
+          component_type: "dut",
+          label: "Sample",
         },
         {
           id: source,
@@ -199,6 +199,59 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
     await expect(
       page.getByLabel("Construction", { exact: true }),
     ).toBeEnabled();
+    await page
+      .getByRole("button", { name: "Signal: Input line endpoint", exact: true })
+      .click();
+    await expect(
+      page.getByLabel("Direction", { exact: true }).locator("option"),
+    ).toHaveCount(3);
+    await page.getByLabel("Direction", { exact: true }).selectOption("output");
+    await expect(
+      page.getByRole("button", {
+        name: "Signal: Output line endpoint",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect(page.getByLabel("Direction", { exact: true })).toHaveValue(
+      "input",
+    );
+    await page
+      .getByLabel("Direction", { exact: true })
+      .selectOption("bidirectional");
+    await expect(
+      page.getByRole("button", {
+        name: "Signal: Bidirectional line endpoint",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.getByLabel("Direction", { exact: true }).selectOption("input");
+    await expect(
+      page.getByRole("button", {
+        name: "Signal: Input line endpoint",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await page.locator(`[data-component-id="${b}"]`).click();
+    await page
+      .getByLabel("Connection above", { exact: true })
+      .selectOption("top:0");
+    const entryPort = async () =>
+      check(
+        await db
+          .from("components")
+          .select("line_entry_port")
+          .eq("id", b)
+          .single(),
+      )!.line_entry_port;
+    await expect.poll(entryPort).toEqual({ side: "top", index: 0 });
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect.poll(entryPort).toBeNull();
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await expect.poll(entryPort).toEqual({ side: "top", index: 0 });
+    await page
+      .getByRole("button", { name: "Wire", exact: true })
+      .press("Enter");
     await page
       .getByLabel("Construction", { exact: true })
       .selectOption("twisted_pair");
@@ -329,6 +382,14 @@ test("wire properties survive edits, undo, component deletion, reload, check-in,
         .single(),
     )!;
     expect(version.snapshot).toMatchObject({
+      lines: [{ direction: "input" }],
+      components: expect.arrayContaining([
+        {
+          ...check(
+            await db.from("components").select("*").eq("id", b).single(),
+          )!,
+        },
+      ]),
       connections: [
         {
           wire_properties: {

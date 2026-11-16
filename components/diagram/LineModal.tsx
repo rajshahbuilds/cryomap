@@ -8,7 +8,7 @@ import { getLineTypeLabel } from "@/lib/constants/lineTypes";
 export interface LineModalValues {
   name: string;
   lineType: LineType | null;
-  direction: Direction | null;
+  direction: Direction;
 }
 
 interface LineModalProps {
@@ -40,7 +40,7 @@ export function LineModal({
 }: LineModalProps) {
   const [name, setName] = useState(defaultName);
   const [lineType, setLineType] = useState<LineType | "">("");
-  const [direction, setDirection] = useState<Direction | "">("");
+  const [direction, setDirection] = useState<Direction>("input");
   const [error, setError] = useState("");
 
   const submit = (e: React.FormEvent) => {
@@ -52,7 +52,7 @@ export function LineModal({
     onConfirm({
       name: name.trim(),
       lineType: lineType || null,
-      direction: direction || null,
+      direction,
     });
   };
 
@@ -103,10 +103,9 @@ export function LineModal({
           <select
             aria-label="Direction"
             value={direction}
-            onChange={(e) => setDirection(e.target.value as Direction | "")}
+            onChange={(e) => setDirection(e.target.value as Direction)}
             className={fieldClass}
           >
-            <option value="">Unspecified</option>
             {DIRECTIONS.map((dir) => (
               <option key={dir} value={dir}>
                 {DIRECTION_LABEL[dir]}

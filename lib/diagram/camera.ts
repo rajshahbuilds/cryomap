@@ -191,9 +191,9 @@ function centeredCamera(viewport: Size, scale: number): Camera {
  * with a small {@link INITIAL_MARGIN} gap, at {@link DEFAULT_SCALE} so the grid
  * is immediately legible. A top-left anchor is independent of viewport size.
  */
-export function defaultCamera(): Camera {
+export function defaultCamera(topInset = 0): Camera {
   const scale = clampScale(DEFAULT_SCALE);
-  return { scale, x: -INITIAL_MARGIN, y: -INITIAL_MARGIN };
+  return { scale, x: -INITIAL_MARGIN, y: -INITIAL_MARGIN - topInset };
 }
 
 /** A camera that fits the whole logical space centered in the viewport. */

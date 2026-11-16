@@ -29,7 +29,11 @@ import {
 const asDb = (fake: SupabaseFake) => fake as unknown as Db;
 const sheet = makeSheet();
 const line = makeLine();
-const a = makeComponent({ line_id: line.id });
+const a = makeComponent({
+  line_id: line.id,
+  line_entry_port: { side: "left", index: 0 },
+  line_exit_port: { side: "right", index: 0 },
+});
 const b = makeComponent({ line_id: line.id });
 const properties = wirePropertiesSchema.parse({
   construction: "twisted_pair",
@@ -173,6 +177,12 @@ describe("wire properties", () => {
     const target = crypto.randomUUID();
     await writeDiagramState(asDb(fake), target, state());
     const loaded = await loadDiagramState(asDb(fake), target);
+    expect(
+      loaded.components.find((c) => c.line_entry_port)?.line_entry_port,
+    ).toEqual(a.line_entry_port);
+    expect(
+      loaded.components.find((c) => c.line_exit_port)?.line_exit_port,
+    ).toEqual(a.line_exit_port);
     expect(loaded.connections[0].wire_properties).toEqual(properties);
     const fresh = loaded.wireSegmentProperties[0];
     expect(fresh.wire_properties).toEqual(properties);
@@ -200,6 +210,12 @@ describe("wire properties", () => {
     expect(loaded.wireSegmentProperties).toHaveLength(1);
     expect(loaded.wireSegmentProperties[0].id).not.toBe("discard-me");
     expect(loaded.wireSegmentProperties[0].wire_properties).toEqual(properties);
+    expect(
+      loaded.components.find((c) => c.line_entry_port)?.line_entry_port,
+    ).toEqual(a.line_entry_port);
+    expect(
+      loaded.components.find((c) => c.line_exit_port)?.line_exit_port,
+    ).toEqual(a.line_exit_port);
     expect(loaded.connections[0].wire_properties).toEqual(properties);
   });
 });

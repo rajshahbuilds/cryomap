@@ -8,9 +8,14 @@ import type { Box } from "@/lib/diagram/placement";
 export interface Wire {
   key: string;
   reference?: WireReference;
+  selectionLabel?: string;
   properties?: WireProperties;
   /** Visual construction; omitted wires retain their original appearance. */
   construction?: WireConstruction;
+  fromComponentId?: string;
+  toComponentId?: string;
+  fromSide?: PortSide;
+  toSide?: PortSide;
   from: Point;
   to: Point;
   /** Precomputed SVG path (e.g. orthogonal routing); falls back to a straight segment. */
@@ -499,6 +504,8 @@ export interface PlacedComponent {
   id: string;
   lineId: string;
   wireScope?: { fridge_id: string; sheet_id: string };
+  entry?: ResolvedPort | null;
+  exit?: ResolvedPort | null;
   x: number;
   y: number;
 }
@@ -534,11 +541,19 @@ export function implicitWires(placed: PlacedComponent[]): Wire[] {
     for (let i = 0; i + 1 < ordered.length; i++) {
       const a = ordered[i];
       const b = ordered[i + 1];
-      const from = { x: a.x, y: a.y };
-      const to = { x: b.x, y: b.y };
-      const points = trunkRoute(from, to);
+      // Resolved callers must choose real ports. Legacy geometry-only callers
+      // can still use anchors, but a missing resolved port never invents a wire.
+      if (a.exit === null || b.entry === null) continue;
+      const from = a.exit?.point ?? { x: a.x, y: a.y };
+      const to = b.entry?.point ?? { x: b.x, y: b.y };
+      const points =
+        a.exit && b.entry
+          ? orthogonalRoute(from, to, a.exit.side, b.entry.side)
+          : trunkRoute(from, to);
       wires.push({
         key: `${a.id}-${b.id}`,
+        fromComponentId: a.id,
+        toComponentId: b.id,
         ...(a.wireScope
           ? {
               reference: {
@@ -552,6 +567,8 @@ export function implicitWires(placed: PlacedComponent[]): Wire[] {
           : {}),
         from,
         to,
+        ...(a.exit ? { fromSide: a.exit.side } : {}),
+        ...(b.entry ? { toSide: b.entry.side } : {}),
         points,
         path: pointsToPath(points),
       });

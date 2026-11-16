@@ -100,6 +100,25 @@ when components, lines, stages, or sheets are deleted or reassigned. Undo/redo
 keeps entity ids stable; duplication and version restoration still create fresh
 ids and remap the wire references.
 
+## Line endpoints and component ports
+
+Every line starts with the existing Input, Output, or Bidirectional port symbol.
+New lines default to Input. The endpoint sits in a header above the stages;
+component positions are unchanged. Wiring connects actual ports and stops at
+the last component, rather than extending a colored trunk through the diagram.
+Faint placement guides appear while editing and are omitted from image exports.
+
+Simple inline components connect automatically. A single-port component ends
+the chain. For branch devices, choose **Connection above** and **Connection below**
+in the component panel; these refer to physical position, independent of signal
+flow. Stored choices follow their ports when a component rotates or mirrors.
+Explicit cables take precedence over automatic connections on the same ports.
+
+Apply the `20261115120000_line_endpoints.sql` migration before running this
+version. It backfills empty live directions to Input, requires one of the three
+directions, and adds nullable component port choices. Historical snapshots load
+with Input and automatic port defaults; stored history is left intact.
+
 ## Verify changes
 
 ```bash

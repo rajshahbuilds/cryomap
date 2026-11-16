@@ -121,6 +121,8 @@ export async function writeDiagramState(
           sheet_id: remapSheet(c.sheet_id),
           line_id: c.line_id ? (lineIdMap.get(c.line_id) ?? null) : null,
           stage_id: c.stage_id ? (stageIdMap.get(c.stage_id) ?? null) : null,
+          line_entry_port: c.line_entry_port,
+          line_exit_port: c.line_exit_port,
           linked_line_id: c.linked_line_id
             ? (lineIdMap.get(c.linked_line_id) ?? null)
             : null,

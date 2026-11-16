@@ -116,6 +116,8 @@ export function makeComponent(overrides: Partial<Component> = {}): Component {
     line_id: null,
     stage_id: null,
     linked_line_id: null,
+    line_entry_port: null,
+    line_exit_port: null,
     component_type: "attenuator",
     custom_def_id: null,
     label: null,

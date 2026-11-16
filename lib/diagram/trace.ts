@@ -135,6 +135,47 @@ export function lineComponents(
     .map((x) => x.component);
 }
 
+/** Trace only actual connections reachable from the sheet-boundary endpoint. */
+function connectedLineComponents(
+  state: DiagramState,
+  lineId: string,
+): Component[] {
+  const line = state.lines.find((line) => line.id === lineId);
+  if (!line) return [];
+  const view = assembleDiagram(state, line.sheet_id);
+  const first = view.lineWires.find(
+    (wire) => wire.key === `line:${lineId}`,
+  )?.toComponentId;
+  if (!first) return [];
+  const adjacent = new Map<string, Set<string>>();
+  const link = (a: string, b: string) => {
+    (adjacent.get(a) ?? adjacent.set(a, new Set()).get(a)!).add(b);
+    (adjacent.get(b) ?? adjacent.set(b, new Set()).get(b)!).add(a);
+  };
+  for (const wire of view.wires) {
+    if (wire.fromComponentId && wire.toComponentId)
+      link(wire.fromComponentId, wire.toComponentId);
+  }
+  const resolved = new Set(view.explicitWires.map((wire) => wire.key));
+  for (const wire of view.connections) {
+    if (resolved.has(wire.id))
+      link(wire.from_component_id, wire.to_component_id);
+  }
+  const visited = new Set([first]);
+  const pending = [first];
+  for (let i = 0; i < pending.length; i++) {
+    for (const id of adjacent.get(pending[i]) ?? []) {
+      if (!visited.has(id)) {
+        visited.add(id);
+        pending.push(id);
+      }
+    }
+  }
+  return lineComponents(state, lineId).filter((component) =>
+    visited.has(component.id),
+  );
+}
+
 /** Trace each port endpoint, assembling every distinct sheet it lives on once. */
 function traceEndpoints(
   state: DiagramState,
@@ -152,7 +193,7 @@ function traceEndpoints(
       const chain = traceChain(view, { componentId: port.id });
       chains.push(
         chain.lineId
-          ? { ...chain, fridge: lineComponents(state, chain.lineId) }
+          ? { ...chain, fridge: connectedLineComponents(state, chain.lineId) }
           : chain,
       );
     }

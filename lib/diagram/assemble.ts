@@ -12,6 +12,7 @@ import type {
   Stage,
 } from "@/lib/types";
 import type { Point } from "@/lib/diagram/camera";
+import { lineConnectionPorts, LINE_ENDPOINT_Y } from "./lineConnections";
 import { lineColumnXById } from "@/lib/diagram/lines";
 import { layoutStageBands, type StageBand } from "@/lib/diagram/stages";
 import {
@@ -30,11 +31,11 @@ import { effectiveSide, portPositions } from "@/lib/diagram/ports";
 import type { PortAnchor } from "@/lib/diagram/connect";
 import {
   implicitWires,
+  orthogonalRouteAvoiding,
   pointsToPath,
   pruneCollinear,
   resolveExplicitWires,
   separateLanes,
-  trunkCrossingVerticals,
   wireJunctions,
   wirePathsWithHops,
   type ExplicitWire,
@@ -71,6 +72,8 @@ export interface DiagramView {
   positioned: PositionedComponent[];
   /** Implicit trunk wires (components down a line). */
   wires: Wire[];
+  /** Leads from each line endpoint to its first component. */
+  lineWires: Wire[];
   /** Explicit, user-drawn port-to-port connections, resolved to segments. */
   explicitWires: Wire[];
   /** Points where wires connect/branch and should carry a junction dot. */
@@ -266,12 +269,71 @@ export function assembleDiagram(
   const portAt = (componentId: string, port: Port) =>
     portsByComponent.get(componentId)?.get(portKey(port)) ?? null;
 
-  const wires = implicitWires(placedForWires);
   const explicitWires = resolveExplicitWires(
     connections.map(connectionToWire),
     portAt,
     obstacles,
   );
+  const explicitIds = new Set(explicitWires.map((wire) => wire.key));
+  const componentById = new Map(components.map((c) => [c.id, c]));
+  const occupied = new Set(
+    connections
+      .filter((connection) => explicitIds.has(connection.id))
+      .flatMap((c) => [
+        `${c.from_component_id}:${c.from_port_side}:${c.from_port_index}`,
+        `${c.to_component_id}:${c.to_port_side}:${c.to_port_index}`,
+      ]),
+  );
+  for (const placed of placedForWires) {
+    const component = componentById.get(placed.id)!;
+    const ports = lineConnectionPorts(
+      component,
+      component.custom_def_id
+        ? customDefById.get(component.custom_def_id)
+        : null,
+    );
+    const resolve = (port: Port | null) =>
+      port && !occupied.has(`${component.id}:${portKey(port)}`)
+        ? portAt(component.id, port)
+        : null;
+    placed.entry = resolve(ports.entry);
+    placed.exit = resolve(ports.exit);
+  }
+  const wires = implicitWires(placedForWires);
+  for (const wire of wires) {
+    wire.points = orthogonalRouteAvoiding(
+      wire.from,
+      wire.to,
+      wire.fromSide,
+      wire.toSide,
+      obstacles.map((obstacle) => obstacle.box),
+    );
+  }
+  const lineWires: Wire[] = [];
+  for (const line of lines) {
+    const first = placedForWires
+      .filter((c) => c.lineId === line.id)
+      .sort((a, b) => a.y - b.y)[0];
+    if (!first?.entry) continue;
+    const from = { x: lineXById.get(line.id)!, y: LINE_ENDPOINT_Y };
+    const to = first.entry.point;
+    const points = orthogonalRouteAvoiding(
+      from,
+      to,
+      "bottom",
+      first.entry.side,
+      obstacles.map((obstacle) => obstacle.box),
+    );
+    lineWires.push({
+      key: `line:${line.id}`,
+      selectionLabel: `${line.name}: line endpoint connection`,
+      toComponentId: first.id,
+      from,
+      to,
+      points,
+      path: pointsToPath(points),
+    });
+  }
 
   const segmentProperties = new Map(
     state.wireSegmentProperties.map((s) => [
@@ -296,7 +358,7 @@ export function assembleDiagram(
   // once — here is the only place that sees both implicit trunks and explicit
   // connections, so over/under, connect-vs-cross, and parallel runs read
   // consistently regardless of which layer each wire renders in.
-  const routed = [...wires, ...explicitWires].filter(
+  const routed = [...lineWires, ...wires, ...explicitWires].filter(
     (w): w is Wire & { points: Point[] } => w.points != null,
   );
   // Spread overlapping parallel runs onto separate lanes before deriving paths,
@@ -308,15 +370,8 @@ export function assembleDiagram(
   routed.forEach((wire, i) => {
     wire.points = pruneCollinear(lanes[i]);
   });
-  // Wires hop over the vertical trunk lines they merely cross, so a crossing
-  // reads as an overlap rather than a short.
-  const trunkVerticals = trunkCrossingVerticals(
-    [...lineXById.values()],
-    routed.map((w) => w.points),
-  );
   const hopPaths = wirePathsWithHops(
     routed.map((w) => ({ key: w.key, points: w.points })),
-    trunkVerticals,
   );
   for (const wire of routed) {
     wire.path = hopPaths.get(wire.key) ?? pointsToPath(wire.points);
@@ -332,6 +387,7 @@ export function assembleDiagram(
     components,
     positioned,
     wires,
+    lineWires,
     explicitWires,
     junctions,
     portAnchors,

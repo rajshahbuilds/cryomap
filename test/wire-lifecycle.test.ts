@@ -66,6 +66,8 @@ function fixture() {
   const connection = makeConnection({
     from_component_id: a.id,
     to_component_id: b.id,
+    from_port_side: "left",
+    to_port_side: "right",
     wire_properties: props,
   });
   const fake = createSupabaseFake({

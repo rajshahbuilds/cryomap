@@ -91,8 +91,15 @@ export function snapshotToState(snapshot: Snapshot): DiagramState {
   return {
     sheets: snapshot.sheets ?? [],
     stages: snapshot.stages,
-    lines: snapshot.lines,
-    components: snapshot.components,
+    lines: snapshot.lines.map((line) => ({
+      ...line,
+      direction: line.direction ?? "input",
+    })),
+    components: snapshot.components.map((component) => ({
+      ...component,
+      line_entry_port: component.line_entry_port ?? null,
+      line_exit_port: component.line_exit_port ?? null,
+    })),
     customDefs: snapshot.custom_defs,
     connections: (snapshot.connections ?? []).map((connection) => ({
       ...connection,

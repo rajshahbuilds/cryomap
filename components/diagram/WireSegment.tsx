@@ -37,6 +37,7 @@ interface WireSegmentProps {
   /** Precomputed path (e.g. orthogonal routing); defaults to a straight segment. */
   path?: string;
   label?: string | null;
+  selectionLabel?: string;
   showLabel?: boolean;
   /** When set, the wire is selectable: a fat hit-path invokes this on click. */
   onSelect?: () => void;
@@ -53,6 +54,7 @@ export function WireSegment({
   construction = "unspecified",
   path,
   label,
+  selectionLabel,
   showLabel = false,
   onSelect,
   selected = false,
@@ -152,7 +154,7 @@ export function WireSegment({
           style={{ cursor: "pointer" }}
           role="button"
           tabIndex={0}
-          aria-label={label ? `Wire: ${label}` : "Wire"}
+          aria-label={selectionLabel ?? (label ? `Wire: ${label}` : "Wire")}
           onPointerDown={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
@@ -204,6 +206,7 @@ export function WireSegments({
           variant={variant}
           construction={wire.properties?.construction ?? wire.construction}
           label={wire.properties?.label}
+          selectionLabel={wire.selectionLabel}
           showLabel={wire.properties?.show_label}
           onSelect={onSelect ? () => onSelect(wire.key) : undefined}
           selected={selectedKey === wire.key}

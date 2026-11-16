@@ -90,6 +90,8 @@ function copyInput(c: Component, xAbs: number | null, yAbs: number | null) {
     line_id: c.line_id,
     stage_id: c.stage_id,
     linked_line_id: c.linked_line_id,
+    line_entry_port: c.line_entry_port,
+    line_exit_port: c.line_exit_port,
     custom_def_id: c.custom_def_id,
     label: c.label,
     value: c.value,

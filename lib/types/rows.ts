@@ -176,7 +176,8 @@ export const lineRowSchema = z.object({
   sheet_id: uuid.nullable().default(null),
   name: z.string(),
   line_type: lineTypeSchema.nullable(),
-  direction: directionSchema.nullable(),
+  // Historical snapshots may contain null; live lines always have a direction.
+  direction: z.preprocess((value) => value ?? "input", directionSchema),
   status: entityStatusSchema,
   notes: z.string().nullable(),
   sort_order: z.number().int(),
@@ -193,7 +194,7 @@ export const lineCreateSchema = z.object({
   sheet_id: uuid.nullish(),
   name: z.string().min(1),
   line_type: lineTypeSchema.nullish(),
-  direction: directionSchema.nullish(),
+  direction: directionSchema.optional(),
   status: entityStatusSchema.optional(),
   notes: z.string().nullish(),
   sort_order: z.number().int(),
@@ -249,6 +250,8 @@ export const componentRowSchema = z.object({
   // clicking that line traces the bench chain driving it. Defaulted so
   // older snapshots still validate.
   linked_line_id: uuid.nullable().default(null),
+  line_entry_port: portSchema.nullable().default(null),
+  line_exit_port: portSchema.nullable().default(null),
   component_type: componentTypeSchema,
   custom_def_id: uuid.nullable(),
   label: z.string().nullable(),
@@ -280,6 +283,8 @@ export const componentCreateSchema = z.object({
   line_id: uuid.nullish(),
   stage_id: uuid.nullish(),
   linked_line_id: uuid.nullish(),
+  line_entry_port: portSchema.nullish(),
+  line_exit_port: portSchema.nullish(),
   component_type: componentTypeSchema,
   custom_def_id: uuid.nullish(),
   label: z.string().nullish(),
