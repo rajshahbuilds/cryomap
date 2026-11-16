@@ -79,7 +79,7 @@ export default function Home() {
               href="/playground"
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-ice-deep px-5 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(11,37,69,0.16)] transition hover:opacity-90"
             >
-              Try the editor
+              Try the demo
             </Link>
           </div>
 

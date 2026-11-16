@@ -9,9 +9,7 @@ test("root presents the public CryoMap homepage", async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "Try the editor" }),
-  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Try the demo" })).toBeVisible();
   await expect(page.getByText(/no account required/i)).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Create your workspace" }),
