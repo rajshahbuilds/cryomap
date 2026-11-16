@@ -1,3 +1,4 @@
+import { normalizeSignalPorts } from "./signalPorts";
 import { z } from "zod";
 import { wirePropertiesSchema } from "./wires";
 import { snapshotTypeSchema } from "./enums";
@@ -98,11 +99,13 @@ export function snapshotToState(snapshot: Snapshot): DiagramState {
         line.entry_wire_properties ?? {},
       ),
     })),
-    components: snapshot.components.map((component) => ({
-      ...component,
-      line_entry_port: component.line_entry_port ?? null,
-      line_exit_port: component.line_exit_port ?? null,
-    })),
+    components: normalizeSignalPorts(snapshot.components, snapshot.lines).map(
+      (component) => ({
+        ...component,
+        line_entry_port: component.line_entry_port ?? null,
+        line_exit_port: component.line_exit_port ?? null,
+      }),
+    ),
     customDefs: snapshot.custom_defs,
     connections: (snapshot.connections ?? []).map((connection) => ({
       ...connection,

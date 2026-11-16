@@ -110,6 +110,6 @@ describe("LineChains", () => {
         onJump={vi.fn()}
       />,
     );
-    expect(screen.getByText(/No bench chain links/i)).toBeInTheDocument();
+    expect(screen.getByText(/No other port shares/i)).toBeInTheDocument();
   });
 });

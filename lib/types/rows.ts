@@ -248,7 +248,7 @@ export const componentRowSchema = z.object({
   sheet_id: uuid.nullable().default(null),
   line_id: uuid.nullable(),
   stage_id: uuid.nullable(),
-  // A `fridge_port` on a room-temp sheet may link to a fridge line, so
+  // Legacy Fridge Port association, retained for reading older diagrams, so
   // clicking that line traces the bench chain driving it. Defaulted so
   // older snapshots still validate.
   linked_line_id: uuid.nullable().default(null),

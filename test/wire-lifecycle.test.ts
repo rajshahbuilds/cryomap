@@ -298,7 +298,7 @@ describe("wire edit lifecycle", () => {
         .wire_properties,
     ).toEqual(f.props);
   });
-  it("new segments start unspecified and the original pair keeps its properties", async () => {
+  it("inserting an aligned component does not add wires or change a manual wire", async () => {
     const f = fixture();
     const inserted = await componentsRepo(f.db).create(
       componentCreateSchema.parse({ ...f.a, stage_id: f.stages[1].id }),
@@ -306,15 +306,13 @@ describe("wire edit lifecycle", () => {
     const view = assembleDiagram(
       await loadDiagramState(f.db, f.sheet.fridge_id),
     );
-    expect(view.wires).toHaveLength(2);
-    expect(
-      view.wires.every((w) => w.properties?.construction === "unspecified"),
-    ).toBe(true);
+    expect(view.wires).toEqual([]);
+    expect(view.lineWires).toEqual([]);
     expect(view.explicitWires[0].properties).toEqual(f.props);
     await componentsRepo(f.db).remove(inserted.id);
     expect(
-      assembleDiagram(await loadDiagramState(f.db, f.sheet.fridge_id)).wires[0]
-        .properties,
+      assembleDiagram(await loadDiagramState(f.db, f.sheet.fridge_id))
+        .explicitWires[0].properties,
     ).toEqual(f.props);
   });
   it("keeps the same explicit connection id on add/undo/redo", async () => {

@@ -13,6 +13,7 @@ interface Props {
   readOnly: boolean;
   endpoints: string;
   onSave: (patch: Partial<WireProperties>) => void;
+  onDelete?: () => void;
 }
 const inputClass =
   "w-full rounded border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-status-planned disabled:opacity-60";
@@ -31,6 +32,7 @@ export function WirePropertiesPanel({
   readOnly,
   endpoints,
   onSave,
+  onDelete,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [visibility, setVisibility] = useState({
@@ -245,6 +247,18 @@ export function WirePropertiesPanel({
           </p>
         ) : null}
       </div>
+      {onDelete ? (
+        <div className="border-t border-border p-4">
+          <button
+            type="button"
+            disabled={readOnly}
+            onClick={onDelete}
+            className="w-full rounded border border-border px-3 py-2 text-sm text-foreground hover:bg-background disabled:opacity-40"
+          >
+            Delete wire
+          </button>
+        </div>
+      ) : null}
     </aside>
   );
 }

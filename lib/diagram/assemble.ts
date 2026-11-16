@@ -1,5 +1,6 @@
+import { normalizeSignalPorts } from "@/lib/types/signalPorts";
 import { lineEndpointComponent, lineEndpointType } from "./lineEndpoints";
-import { DEFAULT_WIRE_PROPERTIES, wireSegmentKey } from "@/lib/types";
+import { DEFAULT_WIRE_PROPERTIES } from "@/lib/types";
 import type {
   Annotation,
   Component,
@@ -13,7 +14,6 @@ import type {
   Stage,
 } from "@/lib/types";
 import type { Point } from "@/lib/diagram/camera";
-import { lineConnectionPorts } from "./lineConnections";
 import { lineColumnXById } from "@/lib/diagram/lines";
 import { layoutStageBands, type StageBand } from "@/lib/diagram/stages";
 import {
@@ -31,8 +31,6 @@ import type { FlowOrientation } from "@/lib/diagram/componentGeometry";
 import { effectiveSide, portPositions } from "@/lib/diagram/ports";
 import type { PortAnchor } from "@/lib/diagram/connect";
 import {
-  implicitWires,
-  orthogonalRouteAvoiding,
   pointsToPath,
   pruneCollinear,
   resolveExplicitWires,
@@ -40,7 +38,6 @@ import {
   wireJunctions,
   wirePathsWithHops,
   type ExplicitWire,
-  type PlacedComponent,
   type Wire,
   type WireObstacle,
 } from "@/lib/diagram/wires";
@@ -71,9 +68,9 @@ export interface DiagramView {
   /** This sheet's component rows (`positioned` omits unanchored ones). */
   components: Component[];
   positioned: PositionedComponent[];
-  /** Implicit trunk wires (components down a line). */
+  /** Deprecated automatic wire layers; always empty. Only saved connections render. */
   wires: Wire[];
-  /** Leads from each line endpoint to its first component. */
+  /** Deprecated automatic entry wires; always empty. */
   lineWires: Wire[];
   /** Explicit, user-drawn port-to-port connections, resolved to segments. */
   explicitWires: Wire[];
@@ -166,7 +163,7 @@ function onSheet(rowSheetId: string | null, sheet: Sheet): boolean {
 
 /**
  * Assemble raw diagram state into a render-ready view of **one sheet**:
- * positioned components, implicit trunk wires, and a custom-definition lookup.
+ * positioned components, manually saved wires, and a custom-definition lookup.
  * Pure — the hook fetches a whole fridge, this narrows and normalizes, and the
  * canvas components are pure consumers.
  *
@@ -191,9 +188,10 @@ export function assembleDiagram(
   const onThisSheet = (rowSheetId: string | null) =>
     legacy || (sheet != null && onSheet(rowSheetId, sheet));
 
-  const storedComponents = state.components.filter((c) =>
-    onThisSheet(c.sheet_id),
-  );
+  const storedComponents = normalizeSignalPorts(
+    state.components,
+    state.lines,
+  ).filter((c) => onThisSheet(c.sheet_id));
   const connections = state.connections.filter((c) => onThisSheet(c.sheet_id));
   const stages = state.stages.filter((s) => onThisSheet(s.sheet_id));
   const lines = state.lines.filter((l) => onThisSheet(l.sheet_id));
@@ -217,34 +215,11 @@ export function assembleDiagram(
   const lineNameById = new Map(state.lines.map((l) => [l.id, l.name]));
 
   const positioned: PositionedComponent[] = [];
-  const placedForWires: PlacedComponent[] = [];
 
   for (const component of components) {
     const anchor = componentAnchor(component, { lineXById, bandById });
     if (!anchor) continue;
     positioned.push({ component, x: anchor.x, y: anchor.y });
-
-    // Components attached to a trunk get joined down the line by implicit wires.
-    if (
-      !component.line_endpoint_id &&
-      !component.free_floating &&
-      component.line_id
-    ) {
-      placedForWires.push({
-        id: component.id,
-        lineId: component.line_id,
-        ...(component.fridge_id && component.sheet_id
-          ? {
-              wireScope: {
-                fridge_id: component.fridge_id,
-                sheet_id: component.sheet_id,
-              },
-            }
-          : {}),
-        x: anchor.x,
-        y: anchor.y,
-      });
-    }
   }
 
   // Resolve each component's ports to absolute logical points (anchor + the
@@ -291,90 +266,10 @@ export function assembleDiagram(
     portAt,
     obstacles,
   );
-  const explicitIds = new Set(explicitWires.map((wire) => wire.key));
-  const componentById = new Map(components.map((c) => [c.id, c]));
-  const occupied = new Set(
-    connections
-      .filter((connection) => explicitIds.has(connection.id))
-      .flatMap((c) => [
-        `${c.from_component_id}:${c.from_port_side}:${c.from_port_index}`,
-        `${c.to_component_id}:${c.to_port_side}:${c.to_port_index}`,
-      ]),
-  );
-  for (const placed of placedForWires) {
-    const component = componentById.get(placed.id)!;
-    const ports = lineConnectionPorts(
-      component,
-      component.custom_def_id
-        ? customDefById.get(component.custom_def_id)
-        : null,
-    );
-    const resolve = (port: Port | null) =>
-      port && !occupied.has(`${component.id}:${portKey(port)}`)
-        ? portAt(component.id, port)
-        : null;
-    placed.entry = resolve(ports.entry);
-    placed.exit = resolve(ports.exit);
-  }
-  const wires = implicitWires(placedForWires);
-  for (const wire of wires) {
-    wire.points = orthogonalRouteAvoiding(
-      wire.from,
-      wire.to,
-      wire.fromSide,
-      wire.toSide,
-      obstacles.map((obstacle) => obstacle.box),
-    );
-  }
+  // Alignment with a line is a layout choice, never an electrical connection.
+  // Keep the old layer fields empty for consumers of historical diagram views.
+  const wires: Wire[] = [];
   const lineWires: Wire[] = [];
-  for (const line of lines) {
-    const first = placedForWires
-      .filter((c) => c.lineId === line.id)
-      .sort((a, b) => a.y - b.y)[0];
-    if (!first?.entry) continue;
-    const endpoint = endpoints.find((c) => c.line_endpoint_id === line.id)!;
-    const endpointPort = componentPorts(endpoint)[0];
-    // Once the user explicitly wires this terminal, their wiring takes precedence.
-    if (occupied.has(`${endpoint.id}:${portKey(endpointPort)}`)) continue;
-    const source = portAt(endpoint.id, endpointPort);
-    if (!source) continue;
-    const from = source.point;
-    const to = first.entry.point;
-    const points = orthogonalRouteAvoiding(
-      from,
-      to,
-      source.side,
-      first.entry.side,
-      obstacles.map((obstacle) => obstacle.box),
-    );
-    lineWires.push({
-      key: `line:${line.id}`,
-      selectionLabel: line.entry_wire_properties?.label
-        ? `Wire: ${line.entry_wire_properties.label}`
-        : `${line.name}: line endpoint connection`,
-      reference: { kind: "line_entry", id: line.id },
-      properties: line.entry_wire_properties ?? DEFAULT_WIRE_PROPERTIES,
-      fromComponentId: endpoint.id,
-      toComponentId: first.id,
-      from,
-      to,
-      points,
-      path: pointsToPath(points),
-    });
-  }
-
-  const segmentProperties = new Map(
-    state.wireSegmentProperties.map((s) => [
-      wireSegmentKey(s),
-      s.wire_properties,
-    ]),
-  );
-  for (const wire of wires) {
-    if (wire.reference?.kind === "implicit")
-      wire.properties =
-        segmentProperties.get(wireSegmentKey(wire.reference)) ??
-        DEFAULT_WIRE_PROPERTIES;
-  }
   const connectionById = new Map(connections.map((c) => [c.id, c]));
   for (const wire of explicitWires) {
     wire.reference = { kind: "explicit", id: wire.key };
@@ -382,11 +277,8 @@ export function assembleDiagram(
       connectionById.get(wire.key)?.wire_properties ?? DEFAULT_WIRE_PROPERTIES;
   }
 
-  // Hops, junction dots, and lane separation are derived across *all* wires at
-  // once — here is the only place that sees both implicit trunks and explicit
-  // connections, so over/under, connect-vs-cross, and parallel runs read
-  // consistently regardless of which layer each wire renders in.
-  const routed = [...lineWires, ...wires, ...explicitWires].filter(
+  // Derive hops, junction dots, and lane separation across the saved wires.
+  const routed = explicitWires.filter(
     (w): w is Wire & { points: Point[] } => w.points != null,
   );
   // Spread overlapping parallel runs onto separate lanes before deriving paths,

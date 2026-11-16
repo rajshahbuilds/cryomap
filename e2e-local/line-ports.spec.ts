@@ -113,12 +113,16 @@ test("line I/O ports move and accept wires in both directions", async ({
           stage_id: stage,
           component_type: "filter_lp",
           label: i ? "Second filter" : "First filter",
-          x_abs: 520 + i * 160,
-          y_abs: 190,
+          line_id: line,
+          x_abs: 320,
+          y_abs: 190 + i * 110,
         })),
       ),
     );
     await page.goto(`/fridges/${fridge}`);
+    await expect(
+      page.getByRole("button", { name: "Wire", exact: true }),
+    ).toHaveCount(0);
     await page.getByRole("button", { name: "Check Out to Edit" }).click();
     await expect(
       page.getByRole("button", { name: "Check In", exact: true }),
@@ -223,11 +227,30 @@ test("line I/O ports move and accept wires in both directions", async ({
           )?.length,
       )
       .toBe(2);
+    await page
+      .getByRole("button", { name: "Wire", exact: true })
+      .first()
+      .press("Enter");
+    await page
+      .getByRole("button", { name: "Delete wire", exact: true })
+      .click();
+    const cables = async () =>
+      check(await db.from("connections").select("id").eq("fridge_id", fridge))
+        ?.length;
+    await expect.poll(cables).toBe(1);
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await expect.poll(cables).toBe(2);
+    await page
+      .getByRole("button", { name: "Wire", exact: true })
+      .first()
+      .press("Enter");
+    await page.keyboard.press("Delete");
+    await expect.poll(cables).toBe(1);
     await page.reload();
     await expect(endpoint).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Wire", exact: true }),
-    ).toHaveCount(2);
+    ).toHaveCount(1);
     await endpoint.click();
     await page
       .getByLabel("Direction", { exact: true })
@@ -243,10 +266,10 @@ test("line I/O ports move and accept wires in both directions", async ({
             await db.from("connections").select("id").eq("fridge_id", fridge),
           )?.length,
       )
-      .toBe(2);
+      .toBe(1);
     await expect(
       page.getByRole("button", { name: "Wire", exact: true }),
-    ).toHaveCount(2);
+    ).toHaveCount(1);
     await page.screenshot({
       path: testInfo.outputPath("interactive-line-ports.png"),
     });

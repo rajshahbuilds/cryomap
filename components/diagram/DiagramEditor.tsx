@@ -38,6 +38,8 @@ import { ComponentSymbol, ComponentCaption } from "./ComponentSymbol";
 import { CheckInModal, type CheckInValues } from "./CheckInModal";
 import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
 import { CustomComponentModal } from "./CustomComponentModal";
+import { isSignalPort } from "@/lib/types/signalPorts";
+import { SignalMatches } from "./SignalMatches";
 import { LineChains } from "./LineChains";
 import { LineColumns, LineEndpointCaption } from "./LineColumns";
 import { LineModal } from "./LineModal";
@@ -1095,6 +1097,15 @@ export function DiagramEditor({
     });
   };
 
+  const deleteWire = (key: string) => {
+    if (!canEdit) return;
+    const connection = view?.connections.find(
+      (connection) => connection.id === key,
+    );
+    setSelectedWireKey(null);
+    if (connection) applyEdit(deleteConnectionCommand(connection));
+  };
+
   useKeyboardShortcuts(
     {
       deselect: () => {
@@ -1119,11 +1130,7 @@ export function DiagramEditor({
         }
         // A selected connection takes priority over component deletion.
         if (selectedWireKey) {
-          const connection = view?.connections.find(
-            (c) => c.id === selectedWireKey,
-          );
-          setSelectedWireKey(null);
-          if (connection) applyEdit(deleteConnectionCommand(connection));
+          deleteWire(selectedWireKey);
           return;
         }
         if (selectedComponents.length === 0) return;
@@ -1224,6 +1231,13 @@ export function DiagramEditor({
   const panelComponent =
     panelSelection?.kind === "component" ? panelSelection.component : null;
 
+  const panelLineId =
+    panelSelection?.kind === "line" ? panelSelection.line.id : null;
+  const selectedLinePortId = panelLineId
+    ? (diagramState?.components.find((c) => c.line_endpoint_id === panelLineId)
+        ?.id ?? panelLineId)
+    : null;
+
   const handlePanelSave = (patch: Record<string, unknown>) => {
     if (!panelSelection) return;
     const entity =
@@ -1232,6 +1246,19 @@ export function DiagramEditor({
         : panelSelection.kind === "line"
           ? panelSelection.line
           : panelSelection.fridge;
+    // Persist the compatibility conversion when an old port is edited, so a
+    // subsequent reload cannot replace its newly edited name with an old FK.
+    if (
+      panelSelection.kind === "component" &&
+      isSignalPort(panelSelection.component) &&
+      !("line_endpoint_direction" in patch)
+    ) {
+      patch = {
+        ...patch,
+        component_type: panelSelection.component.component_type,
+        linked_line_id: null,
+      };
+    }
     const id = entity.id;
     const before: Record<string, unknown> = {};
     for (const key of Object.keys(patch)) {
@@ -1883,6 +1910,7 @@ export function DiagramEditor({
             key={`wire:${selectedWire.key}`}
             properties={selectedWire.properties ?? DEFAULT_WIRE_PROPERTIES}
             endpoints={wireEndpoints}
+            onDelete={() => deleteWire(selectedWire.key)}
             readOnly={!canEdit}
             onSave={(patch) => {
               if (canEdit && selectedWire.reference)
@@ -1910,14 +1938,31 @@ export function DiagramEditor({
             lines={diagramState?.lines ?? []}
             footer={
               panelSelection.kind === "line" && view && diagramState ? (
-                <LineChains
-                  lineName={panelSelection.line.name}
-                  direction={panelSelection.line.direction}
-                  chains={tracedChainsForLine(
-                    diagramState,
-                    panelSelection.line.id,
-                  )}
-                  customDefById={view.customDefById}
+                <div className="space-y-3">
+                  {selectedLinePortId ? (
+                    <SignalMatches
+                      state={diagramState}
+                      componentId={selectedLinePortId}
+                      onJump={handleJumpToComponent}
+                    />
+                  ) : null}
+                  <LineChains
+                    lineName={panelSelection.line.name}
+                    direction={panelSelection.line.direction}
+                    chains={tracedChainsForLine(
+                      diagramState,
+                      panelSelection.line.id,
+                    )}
+                    customDefById={view.customDefById}
+                    onJump={handleJumpToComponent}
+                  />
+                </div>
+              ) : panelSelection.kind === "component" &&
+                isSignalPort(panelSelection.component) &&
+                diagramState ? (
+                <SignalMatches
+                  state={diagramState}
+                  componentId={panelSelection.component.id}
                   onJump={handleJumpToComponent}
                 />
               ) : undefined

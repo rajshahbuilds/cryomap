@@ -1,15 +1,17 @@
 import type { Component, DiagramState } from "@/lib/types";
+import { isSignalPort } from "@/lib/types/signalPorts";
+import { matchingSignalPorts, signalPorts } from "./signals";
 import { COMPONENT_LIBRARY } from "@/lib/constants/componentLibrary";
 import { assembleDiagram, type DiagramView } from "@/lib/diagram/assemble";
 
 /**
  * A bench signal chain that drives a fridge line: the room-temperature
- * components wired to a `fridge_port`, in signal order, plus the fridge line the
+ * components wired to a named I/O port, in signal order, plus the fridge line the
  * port links to. Produced by walking the (undirected) connection graph outward
  * from the port.
  */
 export interface TracedChain {
-  /** The `fridge_port` component the walk started from. */
+  /** The named port component the walk started from. */
   endpointId: string;
   /** The fridge line this endpoint links to (`null` if it links to nothing). */
   lineId: string | null;
@@ -41,7 +43,9 @@ function adjacency(view: DiagramView): Map<string, Set<string>> {
     if (a === b) return; // ignore self-loops
     (adj.get(a) ?? adj.set(a, new Set()).get(a)!).add(b);
   };
+  const resolved = new Set(view.explicitWires.map((wire) => wire.key));
   for (const c of view.connections) {
+    if (!resolved.has(c.id)) continue;
     link(c.from_component_id, c.to_component_id);
     link(c.to_component_id, c.from_component_id);
   }
@@ -57,11 +61,19 @@ export function traceChain(
   view: DiagramView,
   start: { componentId: string },
 ): TracedChain {
-  const byId = new Map(view.components.map((c) => [c.id, c]));
+  const byId = new Map(
+    [...view.components, ...view.positioned.map((p) => p.component)].map(
+      (c) => [c.id, c],
+    ),
+  );
   const endpoint = byId.get(start.componentId) ?? null;
   const base: TracedChain = {
     endpointId: start.componentId,
-    lineId: endpoint?.linked_line_id ?? null,
+    lineId:
+      [...view.lineNameById].find(
+        ([, name]) =>
+          endpoint?.label?.trim() && name.trim() === endpoint.label.trim(),
+      )?.[0] ?? null,
     sheetId: endpoint?.sheet_id ?? null,
     hops: [],
     fridge: [],
@@ -143,19 +155,15 @@ function connectedLineComponents(
   const line = state.lines.find((line) => line.id === lineId);
   if (!line) return [];
   const view = assembleDiagram(state, line.sheet_id);
-  const first = view.lineWires.find(
-    (wire) => wire.key === `line:${lineId}`,
-  )?.toComponentId;
+  const first = view.positioned.find(
+    ({ component }) => component.line_endpoint_id === lineId,
+  )?.component.id;
   if (!first) return [];
   const adjacent = new Map<string, Set<string>>();
   const link = (a: string, b: string) => {
     (adjacent.get(a) ?? adjacent.set(a, new Set()).get(a)!).add(b);
     (adjacent.get(b) ?? adjacent.set(b, new Set()).get(b)!).add(a);
   };
-  for (const wire of view.wires) {
-    if (wire.fromComponentId && wire.toComponentId)
-      link(wire.fromComponentId, wire.toComponentId);
-  }
   const resolved = new Set(view.explicitWires.map((wire) => wire.key));
   for (const wire of view.connections) {
     if (resolved.has(wire.id))
@@ -171,17 +179,23 @@ function connectedLineComponents(
       }
     }
   }
-  return lineComponents(state, lineId).filter((component) =>
-    visited.has(component.id),
-  );
+  return view.positioned
+    .filter(
+      ({ component }) => visited.has(component.id) && !isSignalPort(component),
+    )
+    .sort((a, b) => a.y - b.y)
+    .map(({ component }) => component);
 }
 
 /** Trace each port endpoint, assembling every distinct sheet it lives on once. */
 function traceEndpoints(
   state: DiagramState,
-  ports: Component[],
+  ports: Pick<Component, "id" | "sheet_id">[],
 ): TracedChain[] {
-  const bySheet = new Map<string | null, Component[]>();
+  const bySheet = new Map<
+    string | null,
+    Pick<Component, "id" | "sheet_id">[]
+  >();
   for (const port of ports) {
     const key = port.sheet_id;
     (bySheet.get(key) ?? bySheet.set(key, []).get(key)!).push(port);
@@ -191,11 +205,7 @@ function traceEndpoints(
     const view = assembleDiagram(state, sheetId);
     for (const port of group) {
       const chain = traceChain(view, { componentId: port.id });
-      chains.push(
-        chain.lineId
-          ? { ...chain, fridge: connectedLineComponents(state, chain.lineId) }
-          : chain,
-      );
+      chains.push(chain);
     }
   }
   return chains;
@@ -203,35 +213,35 @@ function traceEndpoints(
 
 /**
  * The bench chains that terminate at one fridge line. Pure — no DB, no
- * React. Only the `fridge_port`s linking to `lineId` are walked, so this stays
+ * React. Only ports with the line’s name are walked, so this stays
  * cheap enough to call directly when a line is selected. Empty ⇒ nothing links.
  */
 export function tracedChainsForLine(
   state: DiagramState,
   lineId: string,
 ): TracedChain[] {
-  const ports = state.components.filter(
-    (c) => c.component_type === "fridge_port" && c.linked_line_id === lineId,
-  );
-  return traceEndpoints(state, ports);
+  const endpoint = signalPorts(state).find((port) => port.lineId === lineId);
+  if (!endpoint) return [];
+  const matches = matchingSignalPorts(state, endpoint.id);
+  // A synthesized line terminal has no stored row until first interaction.
+  const ports = matches.map((match) => ({
+    id: match.id,
+    sheet_id: match.sheetId,
+  }));
+  const fridge = connectedLineComponents(state, lineId);
+  return traceEndpoints(state, ports).map((chain) => ({
+    ...chain,
+    lineId,
+    fridge,
+  }));
 }
 
-/**
- * Every room-temp chain terminating at a fridge line, keyed by line id. Pure —
- * no DB access, no React. Groups the traced chains by the line each links to; a
- * line with no linked endpoint simply has no entry.
- */
+/** Named signal continuations for every fridge line, without drawing connections. */
 export function chainsByLine(state: DiagramState): Map<string, TracedChain[]> {
-  const linked = state.components.filter(
-    (c) => c.component_type === "fridge_port" && c.linked_line_id != null,
-  );
   const result = new Map<string, TracedChain[]>();
-  for (const chain of traceEndpoints(state, linked)) {
-    if (!chain.lineId) continue;
-    (
-      result.get(chain.lineId) ??
-      result.set(chain.lineId, []).get(chain.lineId)!
-    ).push(chain);
+  for (const line of state.lines) {
+    const chains = tracedChainsForLine(state, line.id);
+    if (chains.length) result.set(line.id, chains);
   }
   return result;
 }

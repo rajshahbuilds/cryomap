@@ -93,7 +93,7 @@ describe("assembleDiagram positioning", () => {
 });
 
 describe("assembleDiagram wiring", () => {
-  it("connects adjacent components on the same line, not across lines", () => {
+  it("does not connect aligned components or a line terminal automatically", () => {
     const view = assembleDiagram(
       build([
         makeComponent({ id: "a0", line_id: "lA", stage_id: "s1" }),
@@ -101,9 +101,9 @@ describe("assembleDiagram wiring", () => {
         makeComponent({ id: "b0", line_id: "lB", stage_id: "s1" }),
       ]),
     );
-    expect(view.wires.map((w) => w.key)).toEqual(["a0-a1"]);
-    expect(view.wires[0].from).toEqual({ x: lineColumnX(0), y: 100 });
-    expect(view.wires[0].to).toEqual({ x: lineColumnX(0), y: 130 });
+    expect(view.wires).toEqual([]);
+    expect(view.lineWires).toEqual([]);
+    expect(view.explicitWires).toEqual([]);
   });
 
   it("does not wire free-floating components", () => {
@@ -158,11 +158,11 @@ describe("assembleDiagram wiring", () => {
     expect(aPorts).toHaveLength(2);
   });
 
-  it("hops an explicit wire over a crossing implicit trunk (cross-layer)", () => {
+  it("hops one manually placed wire over another", () => {
     const x0 = lineColumnX(0);
-    // Implicit trunk on line A runs vertically at x0 from y=60 to y=170. Two
+    // A manual wire on line A runs vertically between its two components. Two
     // free components sit either side of it so their connection runs horizontally
-    // across the trunk at y=115 — a true crossing of two different wire layers.
+    // across the first wire at y=115.
     // Circulators keep their left/right ports (they have a bottom port too, so
     // no base turn), so the connection between them is genuinely horizontal.
     const view = assembleDiagram(
@@ -187,6 +187,13 @@ describe("assembleDiagram wiring", () => {
         ],
         [
           makeConnection({
+            id: "vertical",
+            from_component_id: "a0",
+            from_port_side: "right",
+            to_component_id: "a1",
+            to_port_side: "left",
+          }),
+          makeConnection({
             from_component_id: "fl",
             from_port_side: "right",
             to_component_id: "fr",
@@ -196,9 +203,9 @@ describe("assembleDiagram wiring", () => {
       ),
     );
     // The explicit wire carries a semicircular hop (arc) where it meets the trunk.
-    expect(view.explicitWires[0].path).toContain("A 6 6");
+    expect(view.explicitWires[1].path).toContain("A 6 6");
     // The trunk itself stays straight (only horizontals hop).
-    expect(view.wires[0].path).toBe(`M ${x0} 100 L ${x0} 130`);
+    expect(view.explicitWires[0].path).toBe(`M ${x0} 100 L ${x0} 130`);
   });
 
   it("drops connections whose endpoints can't be placed", () => {

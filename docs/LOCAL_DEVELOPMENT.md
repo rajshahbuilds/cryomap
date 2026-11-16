@@ -32,9 +32,8 @@ permissions; it does not need a service-role key. It refuses a hosted API URL
 and refuses to overwrite an existing `.env.local` with different settings.
 Move a conflicting configuration aside yourself before retrying.
 
-The sample includes three cryogenic stages with automatically connected
-components and a room-temperature sheet with an explicit port-to-port
-connection. Running setup again preserves an existing sample and your edits.
+The sample includes three cryogenic stages with aligned, unwired components
+and a room-temperature sheet with a saved port-to-port connection. Running setup again preserves an existing sample and your edits.
 It recreates the sample only after you delete it or reset the local database.
 
 ## Run and sign in
@@ -87,21 +86,21 @@ construction properties are connected to the editor.
 Click a wire on either sheet to inspect it in the right-hand panel. Check out
 before editing. Construction and label visibility update immediately; text and
 measurements save when you leave their field. Optional values can be cleared.
-The wire from the line's I/O port to its first component uses the same panel and
-attributes. Its details belong to that line entry and remain when the first
-component changes or the line is temporarily empty.
 Labels are hidden by default and appear only after enabling **Show label on
 diagram**. Material is independent of construction; coaxial and triaxial wires
 also expose their shield materials. Gauge accepts AWG (including `2/0`, `3/0`,
 and `4/0`) or a diameter in mm or µm. Each wire also has an optional
 **Datasheet URL**, with the same URL validation as component datasheets.
 
-Each automatic segment keeps its properties for that pair of components on that
-line. Inserting a component creates new, unspecified segments. Removing it
-reveals the original pair and its saved properties. Undo restores cable details
-when components, lines, stages, or sheets are deleted or reassigned. Undo/redo
-keeps entity ids stable; duplication and version restoration still create fresh
-ids and remap the wire references.
+All wires are drawn manually between component ports. Select a wire and click
+**Delete wire**, or press Delete/Backspace, to remove it. Undo restores the wire
+and its properties. Adding, moving, or removing an aligned component never
+creates a replacement wire. Previously generated automatic connections no
+longer render; stored manual connections remain available.
+
+Undo restores cable details when components, lines, stages, or sheets are
+deleted. Duplication and version restoration create fresh ids and remap saved
+connection references.
 
 ## Line endpoints and component ports
 
@@ -111,16 +110,21 @@ component positions are unchanged. Wiring connects actual ports and stops at
 the last component, rather than extending a colored trunk through the diagram.
 Faint placement guides appear while editing and are omitted from image exports.
 
-Simple inline components connect automatically. A single-port component ends
-the chain. For branch devices, choose **Connection above** and **Connection below**
-in the component panel; these refer to physical position, independent of signal
-flow. Stored choices follow their ports when a component rotates or mirrors.
-Explicit cables take precedence over automatic connections on the same ports.
+Placing components beneath a line port or on the same line does not connect
+them. Drag from a component port to another port to create a cable. Line ports
+can be moved independently and connected in either drag direction.
 
-Apply `20261115120000_line_endpoints.sql` and
-`20261115140000_line_entry_wire_properties.sql` before running this version. It backfills empty live directions to Input, requires one of the three
-directions, and adds nullable component port choices. Historical snapshots load
-with Input and automatic port defaults; stored history is left intact.
+Input, Output, and Bidirectional are the only selectable signal ports. Their
+**Name** identifies a signal within the same fridge across all its pages;
+a line's name is also its port's name. Matching is case-sensitive and ignores
+leading and trailing spaces. Blank names do not match. **Same signal** lists
+matching ports and lets you jump between pages without drawing wires between
+them. Older Fridge Ports open as named Input ports using the previously linked
+line's name, with their saved manual connections preserved.
+
+This update uses the existing schema and needs no new migration. Existing
+installations must already include the line-port migrations shipped with the
+preceding release. Historical snapshots remain readable.
 
 ## Verify changes
 
@@ -148,7 +152,7 @@ pnpm test:wires
 
 Run `pnpm dev:setup` first. The suite refuses a hosted database URL, signs in as
 the normal local test user, creates its own disposable workspace, and removes
-that workspace on completion. It verifies both wire kinds, hidden labels,
+that workspace on completion. It verifies manually drawn wires, named signal ports, hidden labels,
 undo/redo, component deletion and restoration, reload, check-in, and
 JSON/PNG/PDF exports. It runs separately from the default CI browser suite,
 which does not start Supabase. Continue using the signed-in local sample for

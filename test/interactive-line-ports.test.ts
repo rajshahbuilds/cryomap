@@ -93,23 +93,36 @@ describe("interactive line ports", () => {
 
   it("moves the endpoint independently and recomputes its existing wire route", () => {
     const attached = { ...filter, line_id: line.id };
-    const before = assembleDiagram({ ...state(), components: [attached] });
+    const connections = [
+      makeConnection({
+        from_component_id: line.id,
+        from_port_side: "left",
+        to_component_id: filter.id,
+        to_port_side: "left",
+      }),
+    ];
+    const before = assembleDiagram({
+      ...state(),
+      components: [attached],
+      connections,
+    });
     const moved = { ...endpoint(), x_abs: 500, y_abs: 60 };
     const after = assembleDiagram({
       ...state(),
       components: [attached, moved],
+      connections,
     });
-    expect(before.lineWires[0].from).toEqual({
+    expect(before.explicitWires[0].from).toEqual({
       x: lineColumnX(0),
       y: LINE_ENDPOINT_Y,
     });
-    expect(after.lineWires[0].from).toEqual({ x: 500, y: 92 });
+    expect(after.explicitWires[0].from).toEqual({ x: 500, y: 92 });
     expect(
       after.positioned.find((p) => p.component.id === attached.id)?.x,
     ).toBe(lineColumnX(0));
   });
 
-  it("gives explicit wiring precedence over the generated entry wire", () => {
+  it("renders only the manually saved wire to an aligned component", () => {
     const attached = { ...filter, line_id: line.id };
     const connection = makeConnection({
       from_component_id: line.id,
