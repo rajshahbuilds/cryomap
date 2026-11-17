@@ -99,6 +99,42 @@ describe("ComponentSymbol built-in glyphs", () => {
     expect(screen.getByText("12 GHz")).toBeInTheDocument();
   });
 
+  it.each(["50 Ω", "75 Ω"])(
+    "identifies an unlabeled termination by its %s value alone",
+    (value) => {
+      renderWithProviders(
+        <svg>
+          <ComponentSymbol
+            component={makeComponent({
+              component_type: "termination",
+              label: null,
+              value,
+            })}
+          />
+        </svg>,
+      );
+      expect(screen.getAllByText(value)).toHaveLength(1);
+      expect(screen.queryByText("Termination")).not.toBeInTheDocument();
+      expect(screen.queryByText("Ω")).not.toBeInTheDocument();
+    },
+  );
+
+  it("preserves a termination's explicit label alongside its impedance", () => {
+    renderWithProviders(
+      <svg>
+        <ComponentCaption
+          component={makeComponent({
+            component_type: "termination",
+            label: "Cold load",
+            value: "50 Ω",
+          })}
+        />
+      </svg>,
+    );
+    expect(screen.getByText("Cold load")).toBeInTheDocument();
+    expect(screen.getByText("50 Ω")).toBeInTheDocument();
+  });
+
   it("shows an attenuator's value inside its box, not in the caption", () => {
     const { container } = renderWithProviders(
       <svg>

@@ -566,36 +566,17 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
     };
   },
 
-  termination: ({ w }) => {
-    const hw = w / 2;
-    return {
-      frame: (
-        <>
-          <line x1={-hw} y1={0} x2={-14} y2={0} {...STROKE} />
-          <rect x={-14} y={-7} width={18} height={14} {...FILLED} />
-          <line x1={4} y1={0} x2={12} y2={0} {...STROKE} />
-          {/* Ground. */}
-          <line x1={12} y1={-8} x2={12} y2={8} {...STROKE} />
-          <line x1={16} y1={-5} x2={16} y2={5} {...STROKE} />
-          <line x1={20} y1={-2.5} x2={20} y2={2.5} {...STROKE} />
-        </>
-      ),
-      icon: (
-        <text
-          x={-5}
-          y={0}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={10}
-          fontWeight={700}
-          fill="#1a1d27"
-          stroke="none"
-        >
-          Ω
-        </text>
-      ),
-    };
-  },
+  // Compact matched-load marker, as in Zhang et al., Fig. S6
+  // (https://arxiv.org/pdf/2206.12803). The value lives in the caption.
+  termination: ({ w }) => ({
+    frame: (
+      <>
+        <line x1={-w / 2} y1={0} x2={-6} y2={0} {...STROKE} />
+        <rect x={-6} y={-6} width={12} height={12} fill="#1a1d27" />
+      </>
+    ),
+    icon: null,
+  }),
 
   fridge_port: ({ w, h }, ctx) => {
     const hw = w / 2;

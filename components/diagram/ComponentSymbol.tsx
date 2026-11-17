@@ -22,6 +22,9 @@ import { SYMBOL_GLYPHS } from "./symbolGlyphs";
 function captionLabel(component: Component): string | null {
   if (component.label) return component.label;
   if (component.component_type === "custom") return null;
+  // A load's impedance identifies the compact marker; keep explicit labels.
+  if (component.component_type === "termination" && component.value)
+    return null;
   return COMPONENT_LIBRARY[component.component_type].label;
 }
 
