@@ -234,10 +234,15 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
   amplifier_roomtemp: ({ w, h }) => amp(w, h),
   amplifier_parametric: ({ w, h }) => amp(w, h),
 
+  // Three-port circle with a clockwise circulation arrow, following the
+  // schematic in Krinner et al., Fig. 3 (https://arxiv.org/pdf/1806.07862).
   circulator: ({ w, h }) => {
     const hw = w / 2;
     const r = Math.min(w, h) / 2 - 8;
+    const arrowR = r * 0.6;
     return {
+      // Keep the direction arrow with the ports so rotation and mirroring
+      // transform the entire circulation direction together.
       frame: (
         <>
           <line x1={-hw} y1={0} x2={-r} y2={0} {...STROKE} />
@@ -245,12 +250,12 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
           <line x1={0} y1={r} x2={0} y2={h / 2} {...STROKE} />
           <circle cx={0} cy={0} r={r} {...FILLED} />
           <path
-            d={`M ${r * 0.5} ${-r * 0.4} A ${r * 0.62} ${r * 0.62} 0 1 1 ${-r * 0.4} ${r * 0.5}`}
+            d={`M 0 ${-arrowR} A ${arrowR} ${arrowR} 0 1 1 ${-arrowR} 0`}
             {...STROKE}
           />
           <path
-            d={`M ${-r * 0.62} ${r * 0.2} L ${-r * 0.4} ${r * 0.5} L ${-r * 0.18} ${r * 0.32}`}
-            {...STROKE}
+            d={`M ${-arrowR} 0 L ${-arrowR * 1.32} ${arrowR * 0.42} L ${-arrowR * 0.68} ${arrowR * 0.42} Z`}
+            fill="#1a1d27"
           />
         </>
       ),

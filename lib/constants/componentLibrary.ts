@@ -157,7 +157,7 @@ export const COMPONENT_LIBRARY: Record<
       { side: "right", index: 0 },
       { side: "bottom", index: 0 },
     ],
-    defaultSize: { width: 60, height: 60 },
+    defaultSize: { width: 48, height: 48 },
     allowedLineTypes: null,
     defaultFields: {},
   },
