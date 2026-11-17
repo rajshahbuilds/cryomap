@@ -360,6 +360,77 @@ describe("ComponentSymbol custom definitions", () => {
     expect(screen.getByText("Custom")).toBeInTheDocument();
   });
 
+  it.each([0, 90, 180, 270] as const)(
+    "keeps optional names inside and upright at rotation %s, including mirroring",
+    (rotation) => {
+      const def = makeCustomComponentDef({
+        name: "Part",
+        width_px: 120,
+        height_px: 80,
+        ports: [
+          { side: "left", index: 0, name: "IN" },
+          { side: "right", index: 0, name: "OUT" },
+          { side: "top", index: 0, name: "Bias" },
+          { side: "bottom", index: 0 },
+        ],
+      });
+      const component = makeComponent({
+        component_type: "custom",
+        rotation,
+        mirrored: true,
+      });
+      const { container } = renderWithProviders(
+        <svg>
+          <ComponentSymbol component={component} def={def} />
+        </svg>,
+      );
+      const names = [...container.querySelectorAll("[data-port-name]")];
+      expect(names).toHaveLength(3);
+      expect(names.map((n) => n.textContent)).toEqual(["IN", "OUT", "Bias"]);
+      const halfW = (rotation === 90 || rotation === 270 ? 80 : 120) / 2;
+      const halfH = (rotation === 90 || rotation === 270 ? 120 : 80) / 2;
+      for (const name of names) {
+        expect(Math.abs(Number(name.getAttribute("x")))).toBeLessThan(halfW);
+        expect(Math.abs(Number(name.getAttribute("y")))).toBeLessThan(halfH);
+        expect(name.parentElement?.getAttribute("transform")).toBe(
+          "translate(0 0)",
+        );
+      }
+      expect(container.querySelectorAll('circle[r="3"]')).toHaveLength(4);
+    },
+  );
+
+  it("updates all instances from their shared definition and can clear names", () => {
+    const def = makeCustomComponentDef({
+      name: "Part",
+      ports: [{ side: "left", index: 0, name: "IN" }],
+    });
+    const first = makeComponent({
+      component_type: "custom",
+      label: null,
+      value: null,
+    });
+    const second = makeComponent({
+      component_type: "custom",
+      label: null,
+      value: null,
+    });
+    const parts = (ports: typeof def.ports) => (
+      <svg>
+        <ComponentSymbol component={first} def={{ ...def, ports }} />
+        <ComponentSymbol component={second} def={{ ...def, ports }} />
+      </svg>
+    );
+    const { rerender, container } = renderWithProviders(parts(def.ports));
+    expect(screen.getAllByText("IN")).toHaveLength(2);
+    rerender(parts([{ side: "left", index: 0, name: "RF" }]));
+    expect(screen.queryByText("IN")).not.toBeInTheDocument();
+    expect(screen.getAllByText("RF")).toHaveLength(2);
+    rerender(parts([{ side: "left", index: 0 }]));
+    expect(container.querySelectorAll("[data-port-name]")).toHaveLength(0);
+    expect(screen.getAllByText("Part")).toHaveLength(2);
+  });
+
   it("sticks ports out of the box on lead stubs", () => {
     // 80×40 box → right edge at x=40; a port sits 10px out at x=50.
     const def = makeCustomComponentDef({ id: "d" });

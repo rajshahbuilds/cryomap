@@ -1,7 +1,16 @@
 import type { ReactNode } from "react";
-import type { Component, CustomComponentDef } from "@/lib/types";
+import type {
+  Component,
+  CustomComponentDef,
+  Port,
+  Rotation,
+} from "@/lib/types";
 import type { Size } from "@/lib/diagram/camera";
-import { localPortPositions } from "@/lib/diagram/ports";
+import {
+  effectiveSide,
+  localPortPositions,
+  portPositions,
+} from "@/lib/diagram/ports";
 import type { PlacedPort } from "@/lib/diagram/ports";
 import {
   componentPorts as symbolPorts,
@@ -142,12 +151,20 @@ function fitBoxLabel(text: string, width: number): string {
   return text.slice(0, maxChars - 1).trimEnd() + "…";
 }
 
-/** The custom component's name, centered inside its box (its only identifier). */
-function CustomLabel({ size, label }: { size: Size; label: string }) {
+/** The custom component's name, fitted to the space left by its port labels. */
+function CustomLabel({
+  size,
+  label,
+  y = 0,
+}: {
+  size: Size;
+  label: string;
+  y?: number;
+}) {
   return (
     <text
       x={0}
-      y={0}
+      y={y}
       textAnchor="middle"
       dominantBaseline="central"
       fontSize={BOX_LABEL_FONT}
@@ -157,6 +174,96 @@ function CustomLabel({ size, label }: { size: Size; label: string }) {
     >
       {fitBoxLabel(label, size.width)}
     </text>
+  );
+}
+
+/** Named pins stay inside the physical box and readable after transforms. */
+function NamedCustomLabels({
+  size,
+  ports,
+  rotation,
+  mirrored,
+  label,
+}: {
+  size: Size;
+  ports: Port[];
+  rotation: Rotation;
+  mirrored: boolean;
+  label: string;
+}) {
+  const turned = rotation === 90 || rotation === 270;
+  const box = turned ? { width: size.height, height: size.width } : size;
+  const fontSize = 9;
+  const labels = portPositions(ports, size, rotation, mirrored).flatMap(
+    ({ port, x, y }) => {
+      const text = port.name?.trim();
+      if (!text) return [];
+      const side = effectiveSide(port.side, rotation, mirrored);
+      const anchor: "start" | "end" | "middle" =
+        side === "left" ? "start" : side === "right" ? "end" : "middle";
+      const tx = side === "left" ? x + 6 : side === "right" ? x - 6 : x;
+      const ty = side === "top" ? y + 8 : side === "bottom" ? y - 8 : y;
+      const width = text.length * fontSize * 0.9;
+      const left =
+        tx - (anchor === "end" ? width : anchor === "middle" ? width / 2 : 0);
+      return [{ port, text, anchor, x: tx, y: ty, left, right: left + width }];
+    },
+  );
+
+  // Prefer the center, then a free row above or below the pin names. Reserve
+  // horizontal room too, so small boxes truncate the title rather than cover pins.
+  const rows = [
+    0,
+    -box.height / 4,
+    box.height / 4,
+    -box.height / 2 + 9,
+    box.height / 2 - 9,
+  ];
+  const title = rows
+    .map((y) => {
+      let width = box.width;
+      for (const pin of labels) {
+        if (Math.abs(pin.y - y) >= 11) continue;
+        const clearance =
+          pin.left > 0 ? pin.left : pin.right < 0 ? -pin.right : 0;
+        width = Math.min(width, Math.max(0, 2 * (clearance - 4)));
+      }
+      const chars = Math.min(
+        label.length,
+        Math.max(
+          1,
+          Math.floor((width - BOX_LABEL_PAD) / (BOX_LABEL_FONT * 0.58)),
+        ),
+      );
+      return { y, width, chars };
+    })
+    .sort((a, b) => b.chars - a.chars || Math.abs(a.y) - Math.abs(b.y))[0];
+
+  return (
+    <>
+      <CustomLabel
+        size={{ width: title.width, height: box.height }}
+        label={label}
+        y={title.y}
+      />
+      {labels.map((pin) => (
+        <text
+          key={`${pin.port.side}-${pin.port.index}`}
+          data-port-name={`${pin.port.side}:${pin.port.index}`}
+          x={pin.x}
+          y={pin.y}
+          textAnchor={pin.anchor}
+          dominantBaseline="central"
+          fontSize={fontSize}
+          fontWeight={500}
+          fill="#1a1d27"
+          stroke="none"
+          pointerEvents="none"
+        >
+          {pin.text}
+        </text>
+      ))}
+    </>
   );
 }
 
@@ -243,9 +350,14 @@ export function ComponentSymbol({
   // vertical turn for left/right-only components leaves the icon upright.
   let frame: ReactNode;
   let icon: ReactNode = null;
+  const hasNamedPorts =
+    component.component_type === "custom" &&
+    !!def?.ports.some((port) => port.name?.trim());
   if (component.component_type === "custom") {
     frame = <CustomGlyph size={size} />;
-    icon = <CustomLabel size={size} label={customBoxLabel(def)} />;
+    icon = hasNamedPorts ? null : (
+      <CustomLabel size={size} label={customBoxLabel(def)} />
+    );
   } else {
     ({ frame, icon } = SYMBOL_GLYPHS[component.component_type](
       { w: size.width, h: size.height },
@@ -281,6 +393,18 @@ export function ComponentSymbol({
           transform={`translate(${x} ${y}) rotate(${component.rotation}) scale(${mirror} 1)`}
         >
           {icon}
+        </g>
+      ) : null}
+
+      {hasNamedPorts ? (
+        <g transform={`translate(${x} ${y})`}>
+          <NamedCustomLabels
+            size={size}
+            ports={symbolPorts(component, def)}
+            rotation={effectiveRotation(component, orientation)}
+            mirrored={!!component.mirrored}
+            label={customBoxLabel(def)}
+          />
         </g>
       ) : null}
 

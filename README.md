@@ -34,7 +34,9 @@ hardware changes.
   previously linked line’s name.
 -  **A component vocabulary** for the real parts: attenuators, filters, isolators,
   circulators, HEMT/room-temp amplifiers, DC blocks, thermometers, mixers,
-  switches, and your own reusable custom definitions.
+  switches, and your own reusable custom definitions. Custom parts support optional
+  port names of up to four characters, drawn inside the box and shared by every
+  instance of the definition.
  - **Versioning**: snapshot a diagram with a commit message and browse history.
  - **Collaboration**: labs work together in shared workspaces with roles.
  - **Export**: PNG/PDF of a diagram for notebooks and papers.

@@ -29,6 +29,22 @@ describe("enums", () => {
     });
   });
 
+  it("accepts optional port names up to four characters and preserves case", () => {
+    expect(
+      portSchema.parse({ side: "left", index: 0, name: " Bias " }),
+    ).toEqual({
+      side: "left",
+      index: 0,
+      name: "Bias",
+    });
+    expect(portSchema.parse({ side: "right", index: 0, name: "" }).name).toBe(
+      "",
+    );
+    expect(() =>
+      portSchema.parse({ side: "top", index: 0, name: "INPUT" }),
+    ).toThrow();
+  });
+
   it("rejects invalid values", () => {
     expect(() => lineTypeSchema.parse("nope")).toThrow();
     expect(() => entityStatusSchema.parse("on_fire")).toThrow();

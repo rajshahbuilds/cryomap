@@ -74,6 +74,25 @@ describe("custom def commands", () => {
     });
   });
 
+  it("saves and undoes port name edits without changing port identities", async () => {
+    const before = [{ side: "left" as const, index: 0, name: "IN" }];
+    const after = [{ side: "left" as const, index: 0, name: "RF" }];
+    const fake = createSupabaseFake({
+      custom_component_defs: [
+        makeCustomComponentDef({ id: "d1", ports: before }),
+      ],
+    });
+    const cmd = customDefPatchCommand(
+      "d1",
+      { ports: before },
+      { ports: after },
+    );
+    await cmd.redo(asDb(fake));
+    expect(fake.tables.custom_component_defs[0].ports).toEqual(after);
+    await cmd.undo(asDb(fake));
+    expect(fake.tables.custom_component_defs[0].ports).toEqual(before);
+  });
+
   it("deletes a def on redo and re-creates it on undo", async () => {
     const fake = createSupabaseFake({
       custom_component_defs: [

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Port, PortSide } from "@/lib/types";
-import { PORT_SIDES } from "@/lib/types";
+import { PORT_NAME_MAX_LENGTH, PORT_SIDES } from "@/lib/types";
 import type { CustomDefFormValues } from "@/lib/diagram/customDef";
 
 interface CustomComponentModalProps {
@@ -44,11 +44,24 @@ export function CustomComponentModal({
       setError("Name is required.");
       return;
     }
+    if (
+      ports.some(
+        (port) => (port.name?.trim().length ?? 0) > PORT_NAME_MAX_LENGTH,
+      )
+    ) {
+      setError(
+        `Port names must be ${PORT_NAME_MAX_LENGTH} characters or fewer.`,
+      );
+      return;
+    }
     onSubmit({
       name: name.trim(),
       width_px: Number(width) || 80,
       height_px: Number(height) || 40,
-      ports,
+      ports: ports.map(({ name: portName, ...port }) => ({
+        ...port,
+        ...(portName?.trim() ? { name: portName.trim() } : {}),
+      })),
       extra_field_keys: keys.map((k) => k.trim()).filter(Boolean),
     });
   };
@@ -61,7 +74,7 @@ export function CustomComponentModal({
       <form
         onPointerDown={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="max-h-[80vh] w-96 space-y-3 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-lg"
+        className="max-h-[80vh] w-full max-w-md space-y-3 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-lg"
       >
         <h2 className="text-base font-semibold text-foreground">
           {mode === "create" ? "New custom component" : "Edit definition"}
@@ -109,8 +122,27 @@ export function CustomComponentModal({
               + Port
             </button>
           </div>
+          <p id="custom-port-name-help" className="text-xs text-muted">
+            Optional names appear inside the part. Maximum{" "}
+            {PORT_NAME_MAX_LENGTH} characters.
+          </p>
           {ports.map((port, i) => (
             <div key={i} className="flex items-center gap-2">
+              <input
+                aria-label={`Port ${i + 1} name`}
+                aria-describedby="custom-port-name-help"
+                value={port.name ?? ""}
+                maxLength={PORT_NAME_MAX_LENGTH}
+                placeholder="Name"
+                onChange={(e) =>
+                  setPorts((p) =>
+                    p.map((q, j) =>
+                      j === i ? { ...q, name: e.target.value } : q,
+                    ),
+                  )
+                }
+                className="w-20 shrink-0 rounded border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-status-planned"
+              />
               <select
                 aria-label="Port side"
                 value={port.side}
@@ -121,7 +153,7 @@ export function CustomComponentModal({
                     ),
                   )
                 }
-                className={fieldClass}
+                className={`${fieldClass} min-w-0 flex-1`}
               >
                 {PORT_SIDES.map((s) => (
                   <option key={s} value={s}>
@@ -142,7 +174,7 @@ export function CustomComponentModal({
                     ),
                   )
                 }
-                className="w-16 rounded border border-border bg-surface px-2 py-1 text-sm"
+                className="w-16 shrink-0 rounded border border-border bg-surface px-2 py-1 text-sm"
               />
               <button
                 type="button"
