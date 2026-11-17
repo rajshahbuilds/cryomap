@@ -129,8 +129,8 @@ export function CustomComponentModal({
             </button>
           </div>
           <p id="custom-port-name-help" className="text-xs text-muted">
-            Pin numbers are assigned automatically. Optional names (up to{" "}
-            {PORT_NAME_MAX_LENGTH} characters) appear inside the part.
+            Optional names (up to {PORT_NAME_MAX_LENGTH} characters) appear
+            inside the part.
           </p>
           {ports.map((port) => (
             <div key={port.pin_number} className="flex items-center gap-2">
