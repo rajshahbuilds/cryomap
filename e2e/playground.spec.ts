@@ -199,3 +199,144 @@ test("demo stage dividers resize with snapping, minimum height, cancellation, an
     page.getByRole("button", { name: "Wire", exact: true }),
   ).toHaveCount(0);
 });
+
+test("demo custom parts share named pins, wire independently, move, and undo definition edits", async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  await page.setViewportSize({ width: 1500, height: 1000 });
+  await page.goto("/playground");
+  await page
+    .getByRole("button", { name: "+ Custom component", exact: true })
+    .click();
+  const form = page.locator("form").filter({
+    has: page.getByRole("heading", { name: "New custom component" }),
+  });
+  await form.getByLabel("Name", { exact: true }).fill("SPI");
+  await form.getByLabel("Width", { exact: true }).fill("140");
+  await form.getByLabel("Height", { exact: true }).fill("100");
+  await form.getByLabel("Pin 1 name").fill("SCLK");
+  await form.getByLabel("Pin 2 name").fill("SDAT");
+  await form.getByRole("button", { name: "+ Pin", exact: true }).click();
+  await form.getByLabel("Pin 3 name").fill("MISO");
+  await form.getByRole("button", { name: "+ Pin", exact: true }).click();
+  await form.getByLabel("Pin 4 name").fill("MOSI");
+  await expect(form.getByLabel("Pin 4 name")).toHaveAttribute("maxlength", "4");
+  await expect(form.getByLabel("Port index")).toHaveCount(0);
+  await form.getByRole("button", { name: "Create", exact: true }).click();
+  const point = async (x: number, y: number) =>
+    page.locator("svg[data-top-inset]").evaluate(
+      (el, p) => {
+        const screen = new DOMPoint(p.x, p.y).matrixTransform(
+          (el as SVGSVGElement).getScreenCTM()!,
+        );
+        return { x: screen.x, y: screen.y };
+      },
+      { x, y },
+    );
+  const place = async (x: number, y: number) => {
+    await page
+      .getByRole("button", { name: "SPI", exact: true })
+      .first()
+      .click();
+    const target = await point(x, y);
+    await page.mouse.click(target.x, target.y);
+  };
+  await place(280, 160);
+  await place(650, 160);
+  const parts = page.locator('[data-testid^="component-"]');
+  await expect(parts).toHaveCount(2);
+  await expect(page.locator('[data-port-name="left:0"]')).toHaveText([
+    "SCLK",
+    "SCLK",
+  ]);
+  await expect(page.locator('[data-port-name="left:1"]')).toHaveText([
+    "MISO",
+    "MISO",
+  ]);
+  await expect(parts.first().locator("rect").last()).toHaveAttribute(
+    "width",
+    "140",
+  );
+  const ids = await parts.evaluateAll((els) =>
+    els.map((el) => el.getAttribute("data-testid")!.replace("component-", "")),
+  );
+  const port = async (id: string, side: string, index: number) => {
+    await page
+      .getByTestId(`component-${id}`)
+      .locator("[data-component-type]")
+      .hover();
+    const b = (await page
+      .getByTestId(`port-${id}-${side}-${index}`)
+      .boundingBox())!;
+    return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  };
+  const wires = page.getByRole("button", { name: "Wire", exact: true });
+  for (let index = 0; index < 3; index++) {
+    const target = await port(ids[1], "left", index);
+    const source = await port(ids[0], "right", 0);
+    await page.mouse.move(source.x, source.y);
+    await page.mouse.down();
+    await page.mouse.move(target.x, target.y, { steps: 12 });
+    await page.mouse.up();
+    await expect(wires).toHaveCount(index + 1);
+  }
+  // All three pins resolve to different endpoints, not the last pin on that side.
+  const paths = await wires.evaluateAll((els) =>
+    els.map((el) => el.getAttribute("d")),
+  );
+  expect(new Set(paths).size).toBe(3);
+  await parts.first().press("Enter");
+  await page
+    .getByRole("button", { name: "Edit definition", exact: true })
+    .click();
+  const edit = page
+    .locator("form")
+    .filter({ has: page.getByRole("heading", { name: "Edit definition" }) });
+  await expect(edit.getByLabel("Pin 4 name")).toHaveValue("MOSI");
+  await edit.getByLabel("Name", { exact: true }).fill("SPI2");
+  await edit.getByLabel("Pin 1 name").fill("CLK");
+  await edit.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.locator('[data-port-name="left:0"]')).toHaveText([
+    "CLK",
+    "CLK",
+  ]);
+  await expect(wires).toHaveCount(3);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator('[data-port-name="left:0"]')).toHaveText([
+    "SCLK",
+    "SCLK",
+  ]);
+  await page.getByRole("button", { name: "Redo", exact: true }).click();
+  await expect(page.locator('[data-port-name="left:0"]')).toHaveText([
+    "CLK",
+    "CLK",
+  ]);
+  const beforeMove = await wires.first().getAttribute("d");
+  const start = await point(650, 160),
+    end = await point(700, 300);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(end.x, end.y, { steps: 12 });
+  await page.mouse.up();
+  await expect(wires.first()).not.toHaveAttribute("d", beforeMove!);
+  await expect(wires).toHaveCount(3);
+  // Definitions in use cannot be deleted from under their placed instances.
+  await page
+    .getByRole("button", { name: "Edit or delete SPI2", exact: true })
+    .click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
+  await expect(page.getByText(/Remove the 2 components using/)).toBeVisible();
+  await expect(parts).toHaveCount(2);
+  await parts.first().press("Enter");
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(wires).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(wires).toHaveCount(3);
+  // Reload has the same temporary-data behavior as the rest of the demo.
+  await page.reload();
+  await expect(page.getByText("0 components", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "SPI2", exact: true }),
+  ).toHaveCount(0);
+});

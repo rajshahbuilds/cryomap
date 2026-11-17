@@ -37,7 +37,8 @@ hardware changes.
   switches, and your own reusable custom definitions. Custom parts support optional
   port names of up to four characters, drawn inside the box and shared by every
   instance of the definition. Pins are numbered automatically across the part in
-  the definition editor; only their optional names appear on the diagram.
+  the definition editor; only their optional names appear on the diagram. The public
+  demo includes the same custom-part editor, with temporary definitions and wiring.
  - **Versioning**: snapshot a diagram with a commit message and browse history.
  - **Collaboration**: labs work together in shared workspaces with roles.
  - **Export**: PNG/PDF of a diagram for notebooks and papers.
