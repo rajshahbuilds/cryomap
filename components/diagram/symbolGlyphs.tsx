@@ -253,8 +253,10 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
             d={`M 0 ${-arrowR} A ${arrowR} ${arrowR} 0 1 1 ${-arrowR} 0`}
             {...STROKE}
           />
+          {/* The arc ends at the head's base center, pointing straight up.
+              Extend the tip along that tangent for a continuous join. */}
           <path
-            d={`M ${-arrowR} 0 L ${-arrowR * 1.32} ${arrowR * 0.42} L ${-arrowR * 0.68} ${arrowR * 0.42} Z`}
+            d={`M ${-arrowR} ${-arrowR * 0.42} L ${-arrowR * 1.32} 0 L ${-arrowR * 0.68} 0 Z`}
             fill="#1a1d27"
           />
         </>
