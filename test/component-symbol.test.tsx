@@ -431,6 +431,29 @@ describe("ComponentSymbol custom definitions", () => {
     expect(screen.getAllByText("Part")).toHaveLength(2);
   });
 
+  it("keeps pin numbers off the diagram even for unnamed pins", () => {
+    const def = makeCustomComponentDef({
+      name: "Part",
+      ports: [
+        { side: "left", index: 0, name: "SCLK", pin_number: 1 },
+        { side: "right", index: 0, pin_number: 2 },
+      ],
+    });
+    const component = makeComponent({
+      component_type: "custom",
+      label: null,
+      value: null,
+    });
+    const { container } = renderWithProviders(
+      <svg>
+        <ComponentSymbol component={component} def={def} />
+      </svg>,
+    );
+    expect(
+      [...container.querySelectorAll("text")].map((t) => t.textContent).sort(),
+    ).toEqual(["Part", "SCLK"]);
+  });
+
   it("sticks ports out of the box on lead stubs", () => {
     // 80×40 box → right edge at x=40; a port sits 10px out at x=50.
     const def = makeCustomComponentDef({ id: "d" });

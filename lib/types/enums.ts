@@ -112,6 +112,7 @@ export const portSchema = z.object({
   side: portSideSchema,
   index: z.number().int().nonnegative(),
   name: z.string().trim().max(PORT_NAME_MAX_LENGTH).optional(),
+  pin_number: z.number().int().positive().optional(),
 });
 export type Port = z.infer<typeof portSchema>;
 
