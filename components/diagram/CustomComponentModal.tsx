@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import type { Port, PortSide } from "@/lib/types";
-import { PORT_SIDES } from "@/lib/types";
-import type { CustomDefFormValues } from "@/lib/diagram/customDef";
+import type { PortSide } from "@/lib/types";
+import { PORT_NAME_MAX_LENGTH, PORT_SIDES } from "@/lib/types";
+import {
+  addCustomPin,
+  moveCustomPin,
+  numberCustomPorts,
+  type CustomDefFormValues,
+  type NumberedPort,
+} from "@/lib/diagram/customDef";
 
 interface CustomComponentModalProps {
   mode: "create" | "edit";
@@ -29,11 +35,13 @@ export function CustomComponentModal({
   const [name, setName] = useState(initial?.name ?? "");
   const [width, setWidth] = useState(String(initial?.width_px ?? 80));
   const [height, setHeight] = useState(String(initial?.height_px ?? 40));
-  const [ports, setPorts] = useState<Port[]>(
-    initial?.ports ?? [
-      { side: "left", index: 0 },
-      { side: "right", index: 0 },
-    ],
+  const [ports, setPorts] = useState<NumberedPort[]>(() =>
+    numberCustomPorts(
+      initial?.ports ?? [
+        { side: "left", index: 0 },
+        { side: "right", index: 0 },
+      ],
+    ),
   );
   const [keys, setKeys] = useState<string[]>(initial?.extra_field_keys ?? []);
   const [error, setError] = useState("");
@@ -44,11 +52,24 @@ export function CustomComponentModal({
       setError("Name is required.");
       return;
     }
+    if (
+      ports.some(
+        (port) => (port.name?.trim().length ?? 0) > PORT_NAME_MAX_LENGTH,
+      )
+    ) {
+      setError(
+        `Port names must be ${PORT_NAME_MAX_LENGTH} characters or fewer.`,
+      );
+      return;
+    }
     onSubmit({
       name: name.trim(),
       width_px: Number(width) || 80,
       height_px: Number(height) || 40,
-      ports,
+      ports: ports.map(({ name: portName, ...port }) => ({
+        ...port,
+        ...(portName?.trim() ? { name: portName.trim() } : {}),
+      })),
       extra_field_keys: keys.map((k) => k.trim()).filter(Boolean),
     });
   };
@@ -61,7 +82,7 @@ export function CustomComponentModal({
       <form
         onPointerDown={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="max-h-[80vh] w-96 space-y-3 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-lg"
+        className="max-h-[80vh] w-full max-w-md space-y-3 overflow-y-auto rounded-xl border border-border bg-surface p-5 shadow-lg"
       >
         <h2 className="text-base font-semibold text-foreground">
           {mode === "create" ? "New custom component" : "Edit definition"}
@@ -98,30 +119,54 @@ export function CustomComponentModal({
 
         <div className="space-y-1">
           <div className="flex items-center justify-between">
-            <Label>Ports</Label>
+            <Label>Pins</Label>
             <button
               type="button"
-              onClick={() =>
-                setPorts((p) => [...p, { side: "left", index: 0 }])
-              }
+              onClick={() => setPorts(addCustomPin)}
               className="text-xs text-status-planned"
             >
-              + Port
+              + Pin
             </button>
           </div>
-          {ports.map((port, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <select
-                aria-label="Port side"
-                value={port.side}
+          <p id="custom-port-name-help" className="text-xs text-muted">
+            Optional names (up to {PORT_NAME_MAX_LENGTH} characters) appear
+            inside the part.
+          </p>
+          {ports.map((port) => (
+            <div key={port.pin_number} className="flex items-center gap-2">
+              <span className="w-12 shrink-0 text-xs font-medium text-foreground">
+                Pin {port.pin_number}
+              </span>
+              <input
+                aria-label={`Pin ${port.pin_number} name`}
+                aria-describedby="custom-port-name-help"
+                value={port.name ?? ""}
+                maxLength={PORT_NAME_MAX_LENGTH}
+                placeholder="Name"
                 onChange={(e) =>
                   setPorts((p) =>
-                    p.map((q, j) =>
-                      j === i ? { ...q, side: e.target.value as PortSide } : q,
+                    p.map((q) =>
+                      q.pin_number === port.pin_number
+                        ? { ...q, name: e.target.value }
+                        : q,
                     ),
                   )
                 }
-                className={fieldClass}
+                className="w-20 shrink-0 rounded border border-border bg-surface px-2 py-1 text-sm text-foreground outline-none focus:border-status-planned"
+              />
+              <select
+                aria-label={`Pin ${port.pin_number} side`}
+                value={port.side}
+                onChange={(e) =>
+                  setPorts((p) =>
+                    moveCustomPin(
+                      p,
+                      port.pin_number,
+                      e.target.value as PortSide,
+                    ),
+                  )
+                }
+                className={`${fieldClass} min-w-0 flex-1`}
               >
                 {PORT_SIDES.map((s) => (
                   <option key={s} value={s}>
@@ -129,25 +174,14 @@ export function CustomComponentModal({
                   </option>
                 ))}
               </select>
-              <input
-                type="number"
-                aria-label="Port index"
-                value={port.index}
-                onChange={(e) =>
-                  setPorts((p) =>
-                    p.map((q, j) =>
-                      j === i
-                        ? { ...q, index: Number(e.target.value) || 0 }
-                        : q,
-                    ),
-                  )
-                }
-                className="w-16 rounded border border-border bg-surface px-2 py-1 text-sm"
-              />
               <button
                 type="button"
-                aria-label="Remove port"
-                onClick={() => setPorts((p) => p.filter((_, j) => j !== i))}
+                aria-label={`Remove pin ${port.pin_number}`}
+                onClick={() =>
+                  setPorts((p) =>
+                    p.filter((q) => q.pin_number !== port.pin_number),
+                  )
+                }
                 className="text-xs text-muted hover:text-status-broken"
               >
                 ✕

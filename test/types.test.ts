@@ -29,6 +29,33 @@ describe("enums", () => {
     });
   });
 
+  it("accepts optional port names up to four characters and preserves case", () => {
+    expect(
+      portSchema.parse({ side: "left", index: 0, name: " Bias " }),
+    ).toEqual({
+      side: "left",
+      index: 0,
+      name: "Bias",
+    });
+    expect(portSchema.parse({ side: "right", index: 0, name: "" }).name).toBe(
+      "",
+    );
+    expect(() =>
+      portSchema.parse({ side: "top", index: 0, name: "INPUT" }),
+    ).toThrow();
+  });
+
+  it("accepts optional chip pin numbers starting at one", () => {
+    expect(
+      portSchema.parse({ side: "left", index: 0, pin_number: 1 }).pin_number,
+    ).toBe(1);
+    for (const pin_number of [0, -11, 1.5]) {
+      expect(() =>
+        portSchema.parse({ side: "left", index: 0, pin_number }),
+      ).toThrow();
+    }
+  });
+
   it("rejects invalid values", () => {
     expect(() => lineTypeSchema.parse("nope")).toThrow();
     expect(() => entityStatusSchema.parse("on_fire")).toThrow();

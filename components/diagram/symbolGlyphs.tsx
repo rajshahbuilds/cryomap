@@ -234,10 +234,15 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
   amplifier_roomtemp: ({ w, h }) => amp(w, h),
   amplifier_parametric: ({ w, h }) => amp(w, h),
 
+  // Three-port circle with a clockwise circulation arrow, following the
+  // schematic in Krinner et al., Fig. 3 (https://arxiv.org/pdf/1806.07862).
   circulator: ({ w, h }) => {
     const hw = w / 2;
     const r = Math.min(w, h) / 2 - 8;
+    const arrowR = r * 0.6;
     return {
+      // Keep the direction arrow with the ports so rotation and mirroring
+      // transform the entire circulation direction together.
       frame: (
         <>
           <line x1={-hw} y1={0} x2={-r} y2={0} {...STROKE} />
@@ -245,12 +250,14 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
           <line x1={0} y1={r} x2={0} y2={h / 2} {...STROKE} />
           <circle cx={0} cy={0} r={r} {...FILLED} />
           <path
-            d={`M ${r * 0.5} ${-r * 0.4} A ${r * 0.62} ${r * 0.62} 0 1 1 ${-r * 0.4} ${r * 0.5}`}
+            d={`M 0 ${-arrowR} A ${arrowR} ${arrowR} 0 1 1 ${-arrowR} 0`}
             {...STROKE}
           />
+          {/* The arc ends at the head's base center, pointing straight up.
+              Extend the tip along that tangent for a continuous join. */}
           <path
-            d={`M ${-r * 0.62} ${r * 0.2} L ${-r * 0.4} ${r * 0.5} L ${-r * 0.18} ${r * 0.32}`}
-            {...STROKE}
+            d={`M ${-arrowR} ${-arrowR * 0.42} L ${-arrowR * 1.32} 0 L ${-arrowR * 0.68} 0 Z`}
+            fill="#1a1d27"
           />
         </>
       ),
@@ -566,36 +573,17 @@ export const SYMBOL_GLYPHS: Record<BuiltInComponentType, Glyph> = {
     };
   },
 
-  termination: ({ w }) => {
-    const hw = w / 2;
-    return {
-      frame: (
-        <>
-          <line x1={-hw} y1={0} x2={-14} y2={0} {...STROKE} />
-          <rect x={-14} y={-7} width={18} height={14} {...FILLED} />
-          <line x1={4} y1={0} x2={12} y2={0} {...STROKE} />
-          {/* Ground. */}
-          <line x1={12} y1={-8} x2={12} y2={8} {...STROKE} />
-          <line x1={16} y1={-5} x2={16} y2={5} {...STROKE} />
-          <line x1={20} y1={-2.5} x2={20} y2={2.5} {...STROKE} />
-        </>
-      ),
-      icon: (
-        <text
-          x={-5}
-          y={0}
-          textAnchor="middle"
-          dominantBaseline="central"
-          fontSize={10}
-          fontWeight={700}
-          fill="#1a1d27"
-          stroke="none"
-        >
-          Ω
-        </text>
-      ),
-    };
-  },
+  // Compact matched-load marker, as in Zhang et al., Fig. S6
+  // (https://arxiv.org/pdf/2206.12803). The value lives in the caption.
+  termination: ({ w }) => ({
+    frame: (
+      <>
+        <line x1={-w / 2} y1={0} x2={-6} y2={0} {...STROKE} />
+        <rect x={-6} y={-6} width={12} height={12} fill="#1a1d27" />
+      </>
+    ),
+    icon: null,
+  }),
 
   fridge_port: ({ w, h }, ctx) => {
     const hw = w / 2;

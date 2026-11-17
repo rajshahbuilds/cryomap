@@ -105,10 +105,14 @@ export const PORT_SIDES = ["left", "right", "top", "bottom"] as const;
 export const portSideSchema = z.enum(PORT_SIDES);
 export type PortSide = z.infer<typeof portSideSchema>;
 
-/** A port on a (custom) component symbol. */
+export const PORT_NAME_MAX_LENGTH = 4;
+
+/** A port on a (custom) component symbol; names are display-only. */
 export const portSchema = z.object({
   side: portSideSchema,
   index: z.number().int().nonnegative(),
+  name: z.string().trim().max(PORT_NAME_MAX_LENGTH).optional(),
+  pin_number: z.number().int().positive().optional(),
 });
 export type Port = z.infer<typeof portSchema>;
 

@@ -15,13 +15,14 @@ import {
 import type {
   BuiltInComponentType,
   Component,
+  CustomComponentDef,
   DiagramState,
   Line,
   LineType,
   Rotation,
   Stage,
 } from "@/lib/types";
-import type { Point } from "@/lib/diagram/camera";
+import type { Point, Size } from "@/lib/diagram/camera";
 import { assembleDiagram } from "@/lib/diagram/assemble";
 import { diagramBounds } from "@/lib/diagram/bounds";
 import { resizeStageHeight } from "@/lib/diagram/stageOps";
@@ -34,6 +35,7 @@ import {
 } from "@/lib/diagram/placement";
 import {
   componentSize,
+  baseRotationForType,
   effectiveRotation,
 } from "@/lib/diagram/componentGeometry";
 import { COMPONENT_LIBRARY } from "@/lib/constants/componentLibrary";
@@ -42,6 +44,13 @@ import { zoomPercent } from "@/lib/diagram/status";
 import { Canvas } from "./Canvas";
 import { ComponentCaption, ComponentSymbol } from "./ComponentSymbol";
 import { ComponentPalette, type PaletteSelection } from "./ComponentPalette";
+import { CustomComponentModal } from "./CustomComponentModal";
+import {
+  customDefUsageCount,
+  defToFormValues,
+  type CustomDefFormValues,
+} from "@/lib/diagram/customDef";
+import { useToast } from "@/components/toast/ToastProvider";
 import { LineColumns, LineEndpointCaption } from "./LineColumns";
 import {
   connectionExists,
@@ -131,7 +140,17 @@ function withDemoComponent(
   };
 }
 
+function selectionFor(component: Component): PaletteSelection {
+  return component.component_type === "custom"
+    ? { kind: "custom", defId: component.custom_def_id ?? "" }
+    : { kind: "builtin", type: component.component_type };
+}
+
 export function DemoDiagramEditor() {
+  const toast = useToast();
+  const [customModal, setCustomModal] = useState<
+    { mode: "create" } | { mode: "edit"; def: CustomComponentDef } | null
+  >(null);
   const idCounter = useRef(0);
   const makeId = useCallback(
     (kind: string) => `demo-${kind}-${++idCounter.current}`,
@@ -183,6 +202,9 @@ export function DemoDiagramEditor() {
   const selectedComponent = view.positioned.find(
     ({ component }) => component.id === selectedId,
   )?.component;
+  const selectedDef = selectedComponent?.custom_def_id
+    ? view.customDefById.get(selectedComponent.custom_def_id)
+    : undefined;
   const selectedWire = state.connections.find(
     (wire) => wire.id === selectedWireId,
   );
@@ -194,7 +216,12 @@ export function DemoDiagramEditor() {
         .map(({ component, x, y }) =>
           componentBox(
             { x, y },
-            componentSize(component, null),
+            componentSize(
+              component,
+              component.custom_def_id
+                ? view.customDefById.get(component.custom_def_id)
+                : null,
+            ),
             effectiveRotation(component, view.orientation),
           ),
         ),
@@ -202,16 +229,26 @@ export function DemoDiagramEditor() {
   );
 
   const resolveFor = useCallback(
-    (point: Point, type: BuiltInComponentType, excludeId?: string) => {
+    (point: Point, selection: PaletteSelection, excludeId?: string) => {
       const component = view.positioned.find(
         (p) => p.component.id === excludeId,
       )?.component;
+      let size: Size;
+      if (selection.kind === "builtin") {
+        size = COMPONENT_LIBRARY[selection.type].defaultSize;
+      } else {
+        const def = view.customDefById.get(selection.defId);
+        if (!def) return { ...point, valid: false, target: null };
+        size = { width: def.width_px, height: def.height_px };
+      }
       return resolvePlacement({
         point,
-        size: COMPONENT_LIBRARY[type].defaultSize,
+        size,
         rotation: component
           ? effectiveRotation(component, view.orientation)
-          : 0,
+          : selection.kind === "builtin"
+            ? baseRotationForType(selection.type, view.orientation)
+            : 0,
         stages: component?.line_endpoint_id ? [] : view.stages,
         lines: component?.line_endpoint_id ? [] : view.lines,
         obstacles: obstacles(excludeId),
@@ -233,8 +270,8 @@ export function DemoDiagramEditor() {
         setConnecting(next);
         return;
       }
-      if (placing?.kind === "builtin") {
-        setGhost(resolveFor(point, placing.type));
+      if (placing) {
+        setGhost(resolveFor(point, placing));
         return;
       }
       if (!draggingId) return;
@@ -249,9 +286,9 @@ export function DemoDiagramEditor() {
       const component = view.positioned.find(
         ({ component }) => component.id === draggingId,
       )?.component;
-      if (component && component.component_type !== "custom") {
+      if (component) {
         setMovePreview(
-          resolveFor(point, component.component_type, component.id),
+          resolveFor(point, selectionFor(component), component.id),
         );
       }
     },
@@ -259,15 +296,19 @@ export function DemoDiagramEditor() {
   );
 
   const addComponent = useCallback(
-    (type: BuiltInComponentType, placement: ResolvedPlacement) => {
+    (selection: PaletteSelection, placement: ResolvedPlacement) => {
       if (!placement.target) return;
-      const defaults = COMPONENT_LIBRARY[type].defaultFields;
+      const defaults =
+        selection.kind === "builtin"
+          ? COMPONENT_LIBRARY[selection.type].defaultFields
+          : {};
       const component: Component = {
         id: makeId("component"),
         fridge_id: DEMO_FRIDGE_ID,
         sheet_id: DEMO_SHEET_ID,
-        component_type: type,
-        custom_def_id: null,
+        component_type:
+          selection.kind === "builtin" ? selection.type : "custom",
+        custom_def_id: selection.kind === "custom" ? selection.defId : null,
         linked_line_id: null,
         line_endpoint_id: null,
         line_entry_port: null,
@@ -368,9 +409,9 @@ export function DemoDiagramEditor() {
         }
         return;
       }
-      if (placing?.kind === "builtin") {
-        const placement = resolveFor(point, placing.type);
-        if (placement.valid) addComponent(placing.type, placement);
+      if (placing) {
+        const placement = resolveFor(point, placing);
+        if (placement.valid) addComponent(placing, placement);
         setPlacing(null);
         setGhost(null);
         return;
@@ -396,10 +437,10 @@ export function DemoDiagramEditor() {
       const component = view.positioned.find(
         ({ component }) => component.id === draggingId,
       )?.component;
-      if (component && component.component_type !== "custom") {
+      if (component) {
         const placement = resolveFor(
           point,
-          component.component_type,
+          selectionFor(component),
           component.id,
         );
         if (placement.target) {
@@ -431,6 +472,49 @@ export function DemoDiagramEditor() {
     window.addEventListener("keydown", cancelPlacement);
     return () => window.removeEventListener("keydown", cancelPlacement);
   }, [placing]);
+
+  const submitCustom = (values: CustomDefFormValues) => {
+    if (!customModal) return;
+    const modal = customModal;
+    const id = modal.mode === "create" ? makeId("definition") : modal.def.id;
+    setState((current) => ({
+      ...current,
+      customDefs:
+        modal.mode === "create"
+          ? [
+              ...current.customDefs,
+              {
+                ...values,
+                id,
+                fridge_id: DEMO_FRIDGE_ID,
+                created_by: null,
+                created_at: new Date().toISOString(),
+              },
+            ]
+          : current.customDefs.map((def) =>
+              def.id === id ? { ...def, ...values } : def,
+            ),
+    }));
+    setCustomModal(null);
+  };
+
+  const deleteCustom = (def: CustomComponentDef) => {
+    const uses = customDefUsageCount(state.components, def.id);
+    if (uses) {
+      toast.warning(
+        `Remove the ${uses} component${uses === 1 ? "" : "s"} using “${def.name}” before deleting its definition.`,
+      );
+      return;
+    }
+    setState((current) => ({
+      ...current,
+      customDefs: current.customDefs.filter((item) => item.id !== def.id),
+    }));
+    if (placing?.kind === "custom" && placing.defId === def.id) {
+      setPlacing(null);
+      setGhost(null);
+    }
+  };
 
   const addStage = () => {
     const index = state.stages.length;
@@ -592,17 +676,22 @@ export function DemoDiagramEditor() {
       undo,
       redo,
     },
-    true,
+    !customModal,
   );
 
   const reset = () => {
     if (
-      state.components.length + state.lines.length + state.stages.length > 0 &&
+      state.components.length +
+        state.lines.length +
+        state.stages.length +
+        state.customDefs.length >
+        0 &&
       !window.confirm("Clear this temporary demo canvas?")
     ) {
       return;
     }
     setState(emptyDemoState());
+    setCustomModal(null);
     setPlacing(null);
     setGhost(null);
     setDraggingId(null);
@@ -764,7 +853,16 @@ export function DemoDiagramEditor() {
 
       <div className="flex min-h-0 flex-1">
         <ComponentPalette
-          customDefs={[]}
+          customDefs={state.customDefs}
+          onCreateCustom={() => {
+            deselect();
+            setCustomModal({ mode: "create" });
+          }}
+          onEditCustom={(def) => {
+            deselect();
+            setCustomModal({ mode: "edit", def });
+          }}
+          onDeleteCustom={deleteCustom}
           onStartPlace={(selection) => {
             setPlacing(selection);
             setGhost(null);
@@ -819,7 +917,12 @@ export function DemoDiagramEditor() {
               const moving = component.id === draggingId && movePreview?.valid;
               const drawX = moving ? movePreview.x : x;
               const drawY = moving ? movePreview.y : y;
-              const size = componentSize(component, null);
+              const size = componentSize(
+                component,
+                component.custom_def_id
+                  ? view.customDefById.get(component.custom_def_id)
+                  : null,
+              );
               const box = componentBox(
                 { x: drawX, y: drawY },
                 size,
@@ -839,6 +942,10 @@ export function DemoDiagramEditor() {
                     component.line_endpoint_id
                       ? `${component.label}: ${component.component_type === "output_port" ? "Output" : component.component_type === "bidir_port" ? "Bidirectional" : "Input"} line endpoint`
                       : component.label ||
+                        (component.custom_def_id
+                          ? view.customDefById.get(component.custom_def_id)
+                              ?.name
+                          : null) ||
                         COMPONENT_LIBRARY[
                           component.component_type as BuiltInComponentType
                         ]?.label
@@ -889,6 +996,11 @@ export function DemoDiagramEditor() {
                   ) : null}
                   <ComponentSymbol
                     component={component}
+                    def={
+                      component.custom_def_id
+                        ? view.customDefById.get(component.custom_def_id)
+                        : null
+                    }
                     x={drawX}
                     y={drawY}
                     orientation={view.orientation}
@@ -905,6 +1017,11 @@ export function DemoDiagramEditor() {
                   ) : (
                     <ComponentCaption
                       component={component}
+                      def={
+                        component.custom_def_id
+                          ? view.customDefById.get(component.custom_def_id)
+                          : null
+                      }
                       x={drawX}
                       y={drawY}
                     />
@@ -962,24 +1079,33 @@ export function DemoDiagramEditor() {
                 pointerEvents="none"
               />
             ) : null}
-            {placing?.kind === "builtin" && ghost ? (
+            {placing && ghost ? (
               <g opacity={ghost.valid ? 0.7 : 0.3} pointerEvents="none">
                 <ComponentSymbol
                   component={
                     {
-                      component_type: placing.type,
-                      custom_def_id: null,
+                      component_type:
+                        placing.kind === "builtin" ? placing.type : "custom",
+                      custom_def_id:
+                        placing.kind === "custom" ? placing.defId : null,
                       rotation: 0,
                       mirrored: false,
                       label: null,
                       value:
-                        COMPONENT_LIBRARY[placing.type].defaultFields.value ??
-                        null,
+                        placing.kind === "builtin"
+                          ? (COMPONENT_LIBRARY[placing.type].defaultFields
+                              .value ?? null)
+                          : null,
                       linked_line_id: null,
                       line_endpoint_id: null,
                       line_entry_port: null,
                       line_exit_port: null,
                     } as Component
+                  }
+                  def={
+                    placing.kind === "custom"
+                      ? view.customDefById.get(placing.defId)
+                      : null
                   }
                   x={ghost.x}
                   y={ghost.y}
@@ -1030,7 +1156,7 @@ export function DemoDiagramEditor() {
             selection={{
               kind: "component",
               component: selectedComponent,
-              def: null,
+              def: selectedDef ?? null,
             }}
             readOnly={false}
             onSave={saveSelectedMetadata}
@@ -1051,11 +1177,34 @@ export function DemoDiagramEditor() {
                     if (placed) canvas.centerOn({ x: placed.x, y: placed.y });
                   }}
                 />
+              ) : selectedDef ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCustomModal({ mode: "edit", def: selectedDef })
+                  }
+                  className="rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-background"
+                >
+                  Edit definition
+                </button>
               ) : undefined
             }
           />
         ) : null}
       </div>
+
+      {customModal ? (
+        <CustomComponentModal
+          mode={customModal.mode}
+          initial={
+            customModal.mode === "edit"
+              ? defToFormValues(customModal.def)
+              : undefined
+          }
+          onSubmit={submitCustom}
+          onClose={() => setCustomModal(null)}
+        />
+      ) : null}
 
       <div className="flex items-center gap-4 border-t border-border bg-surface px-4 py-1 text-xs text-muted">
         <span>

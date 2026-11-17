@@ -393,7 +393,7 @@ export const COMPONENT_LIBRARY: Record<
     label: "Termination",
     category: "passive",
     ports: SINGLE_LEFT,
-    defaultSize: { width: 50, height: 50 },
+    defaultSize: { width: 32, height: 24 },
     allowedLineTypes: null,
     defaultFields: { value: "50 Ω" },
   },

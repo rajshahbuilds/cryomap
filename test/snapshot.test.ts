@@ -43,6 +43,16 @@ describe("snapshot serializer", () => {
     expect(restored).toEqual(state);
   });
 
+  it("preserves named and unnamed ports when saving and restoring a version", () => {
+    const state = sampleState();
+    state.customDefs[0].ports = [
+      { side: "left", index: 0, name: "RF", pin_number: 1 },
+      { side: "right", index: 0, pin_number: 4 },
+    ];
+    const restored = snapshotToState(parseSnapshot(serializeSnapshot(state)));
+    expect(restored.customDefs[0].ports).toEqual(state.customDefs[0].ports);
+  });
+
   it("defaults snapshotted_at to an ISO timestamp", () => {
     const snapshot = serializeSnapshot({
       sheets: [],
